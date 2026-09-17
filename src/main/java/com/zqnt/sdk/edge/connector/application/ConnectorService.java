@@ -26,6 +26,19 @@ public interface ConnectorService {
 
 	CompletableFuture<AssetDTO> updateAsset(String id, AssetDTO assetDTO);
 
+	/**
+	 * @deprecated An adapter does not create assets. This is insert-only, so its outcomes are an
+	 *             error for a serial the platform already knows, or a new asset with no
+	 *             organization — which matches no tenant (connector's ListAssets filters on
+	 *             {@code asset.organization.id}) and which nobody can move afterwards, because
+	 *             updateAsset pins the field for good. An invisible asset is a worse outcome than a
+	 *             missing one, because it looks like success.
+	 *             <p>Use {@link #ensureAsset(AssetDTO, String)}: bind to what exists, or pair an
+	 *             unknown serial with a claim code. The Python edge SDK has already dropped its
+	 *             equivalent outright; this one survives only for edge-dji's deprecated
+	 *             organization-id binding path, and goes with it.</p>
+	 */
+	@Deprecated
 	CompletableFuture<AssetDTO> registerAsset(AssetDTO assetDTO);
 
 	CompletableFuture<Boolean> deRegisterAsset(String id);

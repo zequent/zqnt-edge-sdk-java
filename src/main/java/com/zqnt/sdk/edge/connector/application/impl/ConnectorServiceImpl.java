@@ -264,6 +264,7 @@ public class ConnectorServiceImpl implements ConnectorService {
 	}
 
 	@Override
+	@Deprecated
 	public CompletableFuture<AssetDTO> registerAsset(AssetDTO assetDTO) {
 		var request = ConnectorRegisterAssetRequest.newBuilder()
 				.setBase(RequestBase.newBuilder()
