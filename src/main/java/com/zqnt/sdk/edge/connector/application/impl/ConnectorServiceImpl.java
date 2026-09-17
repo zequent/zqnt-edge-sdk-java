@@ -313,6 +313,29 @@ public class ConnectorServiceImpl implements ConnectorService {
 	}
 
 	@Override
+	public CompletableFuture<String> describeAssetClaim(String code) {
+		var request = DescribeAssetClaimRequest.newBuilder()
+				.setBase(RequestBase.newBuilder()
+						.setTid(UUID.randomUUID().toString())
+						.setTimestamp(ProtobufHelpers.now())
+						.build())
+				.setCode(code)
+				.build();
+
+		// Retryable, unlike redeemAssetClaim: this consumes nothing, so a lost response costs only
+		// the call.
+		return callAsyncWithRetry(request, connectorServiceStub::describeAssetClaim)
+				.thenApply(response -> {
+					if (response.getHasErrors() || !response.hasOrganizationName()) {
+						log.warn("Claim code could not be resolved to an organization — it may be unknown, "
+								+ "expired, revoked or already used up; the platform does not say which.");
+						return null;
+					}
+					return response.getOrganizationName();
+				});
+	}
+
+	@Override
 	public CompletableFuture<AssetDTO> ensureAsset(AssetDTO asset, String claimCode) {
 		return getAssetBySn(asset.getSn()).thenCompose(existing -> {
 			if (existing != null) {

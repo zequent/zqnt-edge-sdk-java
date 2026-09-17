@@ -45,6 +45,19 @@ public interface ConnectorService {
 	CompletableFuture<AssetDTO> redeemAssetClaim(String code, AssetDTO asset);
 
 	/**
+	 * The name of the organization a claim code would provision into, without spending the code.
+	 *
+	 * <p>For the moment before anything is created: a device shows its operator which tenant they
+	 * are about to bind into and waits for them to confirm. Redeeming to answer that would consume
+	 * the claim before the operator had agreed to anything, and needs a serial number the flow does
+	 * not have yet.</p>
+	 *
+	 * <p>Completes with {@code null} for every unusable code alike — unknown, expired, revoked,
+	 * exhausted. It returns the organization's name and nothing else, deliberately.</p>
+	 */
+	CompletableFuture<String> describeAssetClaim(String code);
+
+	/**
 	 * Look {@code asset}'s serial number up, and redeem {@code claimCode} for it only if it is
 	 * unknown.
 	 *
