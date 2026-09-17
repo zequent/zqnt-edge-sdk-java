@@ -63,10 +63,16 @@
 
 
     <dependencies>
+        <!-- Pinned to the real, published 2.0.0 release (not the floating 1.0.0-SNAPSHOT this used
+             to reference): a SNAPSHOT resolves to whatever was most recently deployed/installed
+             locally at build time, which is not reproducible and had drifted enough to break the
+             build outright. This is the 2.0.0-track branch (main); the 1.3.0-track branch pins
+             1.3.0 instead. See zqnt-protos' README "Versioning" section for the platform-wide
+             convention. -->
         <dependency>
             <groupId>com.zqnt</groupId>
             <artifactId>zqnt-utils-java</artifactId>
-            <version>1.3.0</version>
+            <version>2.0.0</version>
         </dependency>
         <!-- gRPC dependencies -->
 

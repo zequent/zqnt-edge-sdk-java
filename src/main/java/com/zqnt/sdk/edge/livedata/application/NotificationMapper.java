@@ -2,7 +2,12 @@ package com.zqnt.sdk.edge.livedata.application;
 
 import com.zqnt.sdk.edge.adapter.domains.NotificationRequestData;
 import com.zqnt.sdk.edge.support.MapperSupport;
+import com.zqnt.utils.JsonUtils;
+import com.zqnt.utils.common.proto.GlobalErrorMessage;
+import com.zqnt.utils.core.ProtoJsonUtils;
 import com.zqnt.utils.events.proto.*;
+
+import java.util.Map;
 
 /**
  * Mapper for converting notification POJO data to Proto messages and vice versa.
@@ -24,7 +29,7 @@ public class NotificationMapper {
 		NotificationEvent event = request.getEvent();
 		switch (event.getEventCase()) {
 			case ASSET_STATUS -> data.setAssetStatusEvent(map(event.getAssetStatus()));
-			case TASK -> data.setTaskEvent(map(event.getTask()));
+			case COMMAND_EXECUTION -> data.setCommandExecutionEvent(map(event.getCommandExecution()));
 			case MISSION -> data.setMissionEvent(map(event.getMission()));
 			default -> { /* no-op for ERROR or EVENT_NOT_SET */ }
 		}
@@ -44,8 +49,8 @@ public class NotificationMapper {
 		NotificationEvent.Builder eventBuilder = NotificationEvent.newBuilder();
 		if (requestData.getAssetStatusEvent() != null) {
 			eventBuilder.setAssetStatus(map(requestData.getAssetStatusEvent()));
-		} else if (requestData.getTaskEvent() != null) {
-			eventBuilder.setTask(map(requestData.getTaskEvent()));
+		} else if (requestData.getCommandExecutionEvent() != null) {
+			eventBuilder.setCommandExecution(map(requestData.getCommandExecutionEvent()));
 		} else if (requestData.getMissionEvent() != null) {
 			eventBuilder.setMission(map(requestData.getMissionEvent()));
 		}
@@ -72,25 +77,46 @@ public class NotificationMapper {
 		return builder.build();
 	}
 
-	private NotificationRequestData.TaskEventData map(TaskEvent proto) {
-		return NotificationRequestData.TaskEventData.builder()
-				.taskId(proto.getTaskId())
-				.taskType(proto.getTaskType())
+	private NotificationRequestData.CommandExecutionEventData map(CommandExecutionEvent proto) {
+		return NotificationRequestData.CommandExecutionEventData.builder()
+				.externalExecutionId(proto.getExternalExecutionId())
+				.commandId(proto.hasCommandId() ? proto.getCommandId() : null)
 				.status(proto.getStatus())
 				.progress(proto.hasProgress() ? proto.getProgress() : null)
 				.message(proto.hasMessage() ? proto.getMessage() : null)
-				.externalTaskType(proto.hasExternalTaskType() ? proto.getExternalTaskType() : null)
+				.output(proto.hasOutput() ? structToMap(proto.getOutput()) : null)
+				.error(proto.hasError() ? proto.getError().getErrorMessage() : null)
+				.occurredAt(proto.hasOccurredAt() ? MapperSupport.toLocalDateTime(proto.getOccurredAt()) : null)
+				.assetSn(proto.getAssetSn())
 				.build();
 	}
 
-	private TaskEvent map(NotificationRequestData.TaskEventData data) {
-		TaskEvent.Builder builder = TaskEvent.newBuilder()
-				.setTaskId(MapperSupport.defaultString(data.getTaskId()));
-		MapperSupport.set(builder::setTaskType, data.getTaskType());
+	private CommandExecutionEvent map(NotificationRequestData.CommandExecutionEventData data) {
+		CommandExecutionEvent.Builder builder = CommandExecutionEvent.newBuilder()
+				.setExternalExecutionId(MapperSupport.defaultString(data.getExternalExecutionId()))
+				.setAssetSn(MapperSupport.defaultString(data.getAssetSn()));
+		MapperSupport.set(builder::setCommandId, data.getCommandId());
 		MapperSupport.set(builder::setStatus, data.getStatus());
 		MapperSupport.set(builder::setProgress, data.getProgress());
 		MapperSupport.set(builder::setMessage, data.getMessage());
-		MapperSupport.set(builder::setExternalTaskType, data.getExternalTaskType());
+		if (data.getOutput() != null) builder.setOutput(mapToStruct(data.getOutput()));
+		if (data.getError() != null) {
+			builder.setError(GlobalErrorMessage.newBuilder().setErrorMessage(data.getError())
+					.setTimestamp(MapperSupport.toTimestamp(
+							data.getOccurredAt() != null ? data.getOccurredAt() : java.time.LocalDateTime.now())));
+		}
+		if (data.getOccurredAt() != null) builder.setOccurredAt(MapperSupport.toTimestamp(data.getOccurredAt()));
+		return builder.build();
+	}
+
+	@SuppressWarnings("unchecked")
+	private Map<String, Object> structToMap(com.google.protobuf.Struct struct) {
+		return JsonUtils.fromJson(ProtoJsonUtils.toJson(struct), Map.class);
+	}
+
+	private com.google.protobuf.Struct mapToStruct(Map<String, Object> values) {
+		com.google.protobuf.Struct.Builder builder = com.google.protobuf.Struct.newBuilder();
+		ProtoJsonUtils.fromJson(JsonUtils.toJson(values), builder);
 		return builder.build();
 	}
 

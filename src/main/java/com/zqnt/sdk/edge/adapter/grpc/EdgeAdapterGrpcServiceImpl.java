@@ -18,10 +18,14 @@ import com.zqnt.utils.edge.sdk.proto.EdgeAdapterServiceGrpc;
 import io.grpc.stub.StreamObserver;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
+
+// Named, not wildcard: com.zqnt.utils.devicecontrol.proto also declares ManualControlInput/
+// Capability, colliding with this SDK's own com.zqnt.sdk.edge.adapter.domains versions above.
 
 @Slf4j
 public class EdgeAdapterGrpcServiceImpl extends EdgeAdapterServiceGrpc.EdgeAdapterServiceImplBase {
@@ -62,9 +66,8 @@ public class EdgeAdapterGrpcServiceImpl extends EdgeAdapterServiceGrpc.EdgeAdapt
 				com.zqnt.utils.devicecontrol.proto.Capability.newBuilder()
 						.setCommandId(value.getCommand() == null ? "" : value.getCommand())
 						.setDisplayName(value.getCommand() == null ? "" : value.getCommand())
-						.setState(Boolean.TRUE.equals(value.getAvailable())
-								? CapabilityState.CAPABILITY_STATE_AVAILABLE
-								: CapabilityState.CAPABILITY_STATE_TEMPORARILY_UNAVAILABLE);
+						.setState(value.getState() == null
+								? CapabilityState.CAPABILITY_STATE_AVAILABLE : value.getState());
 		if (value.getDescription() != null) builder.setDescription(value.getDescription());
 		if (value.getUnavailableReason() != null) builder.setUnavailableReason(value.getUnavailableReason());
 		if (value.getMetadata() != null) builder.putAllMetadata(value.getMetadata());
@@ -75,7 +78,42 @@ public class EdgeAdapterGrpcServiceImpl extends EdgeAdapterServiceGrpc.EdgeAdapt
 		CapabilityTarget.Builder target = CapabilityTarget.newBuilder().setType(value.getTargetType() == null
 				? CapabilityTargetType.CAPABILITY_TARGET_TYPE_ASSET : value.getTargetType());
 		if (value.getTargetRef() != null) target.setTargetRef(value.getTargetRef());
-		return builder.setTarget(target).build();
+		builder.setTarget(target);
+		if (value.getErrors() != null) {
+			value.getErrors().forEach(error -> builder.addErrors(toProto(error)));
+		}
+		if (value.getEvents() != null) {
+			value.getEvents().forEach(event -> builder.addEvents(toProto(event)));
+		}
+		if (value.getRequirements() != null) builder.setRequirements(toProto(value.getRequirements()));
+		if (value.getSkillId() != null) builder.setSkillId(value.getSkillId());
+		if (value.getSource() != null) builder.setSource(value.getSource());
+		if (value.getProvider() != null) builder.setProvider(value.getProvider());
+		return builder.build();
+	}
+
+	private CapabilityErrorProto toProto(com.zqnt.sdk.edge.adapter.domains.CapabilityError value) {
+		CapabilityErrorProto.Builder builder = CapabilityErrorProto.newBuilder()
+				.setCode(value.getCode() == null ? "" : value.getCode());
+		if (value.getDescription() != null) builder.setDescription(value.getDescription());
+		return builder.build();
+	}
+
+	private CapabilityEventProto toProto(com.zqnt.sdk.edge.adapter.domains.CapabilityEvent value) {
+		CapabilityEventProto.Builder builder = CapabilityEventProto.newBuilder()
+				.setName(value.getName() == null ? "" : value.getName())
+				.setPayloadSchema(mapToStruct(value.getPayloadSchema() == null ? Map.of() : value.getPayloadSchema()));
+		if (value.getDescription() != null) builder.setDescription(value.getDescription());
+		return builder.build();
+	}
+
+	private CapabilityRequirementsProto toProto(com.zqnt.sdk.edge.adapter.domains.CapabilityRequirements value) {
+		return CapabilityRequirementsProto.newBuilder()
+				.addAllAssetTypes(value.getAssetTypes() == null ? List.of() : value.getAssetTypes())
+				.addAllPayloads(value.getPayloads() == null ? List.of() : value.getPayloads())
+				.addAllRuntimeFeatures(value.getRuntimeFeatures() == null ? List.of() : value.getRuntimeFeatures())
+				.setProperties(mapToStruct(value.getProperties() == null ? Map.of() : value.getProperties()))
+				.build();
 	}
 
 	private Struct mapToStruct(Map<String, Object> values) {
@@ -112,7 +150,7 @@ public class EdgeAdapterGrpcServiceImpl extends EdgeAdapterServiceGrpc.EdgeAdapt
 				.thenAccept(result -> {
 					CustomCommandResponse.Builder builder = CustomCommandResponse.newBuilder()
 							.setCommandId(request.getCommandId())
-							.setMeta(responseMeta(request.getBase(), result.getMessage()));
+							.setMeta(responseMeta(request.getBase(), result));
 					if (result.isSuccess()) {
 						builder.setHasErrors(false).setEmpty(Empty.getDefaultInstance());
 					} else {
@@ -350,8 +388,10 @@ public class EdgeAdapterGrpcServiceImpl extends EdgeAdapterServiceGrpc.EdgeAdapt
 
 	@Override
 	public void stopTask(TaskCommandRequest request, StreamObserver<CommandResponse> responseObserver) {
-		log.warn("StopTask for Edge SN: {}", request.getBase().getSn());
-		handle(request.getBase(), edgeAdapterService.stopTask(request.getTaskId()), responseObserver);
+		log.warn("StopTask (cancelExecution) for Edge SN: {}, externalExecutionId: {}",
+				request.getBase().getSn(), request.getTaskId());
+		handle(request.getBase(), edgeAdapterService.cancelExecution(
+				request.getBase().getSn(), request.getTaskId()), responseObserver);
 	}
 
 	@Override
@@ -380,7 +420,7 @@ public class EdgeAdapterGrpcServiceImpl extends EdgeAdapterServiceGrpc.EdgeAdapt
 
 	protected CommandResponse toCommandResponse(RequestBase base, CommandResult result) {
 		CommandResponse.Builder builder = CommandResponse.newBuilder()
-				.setMeta(responseMeta(base, result.getMessage()));
+				.setMeta(responseMeta(base, result));
 
 		if (result.isSuccess()) {
 			return builder
@@ -423,6 +463,27 @@ public class EdgeAdapterGrpcServiceImpl extends EdgeAdapterServiceGrpc.EdgeAdapt
 		set(builder::setAssetId, valueOrNull(base.hasAssetId(), base.getAssetId()));
 		set(builder::setExternalId, valueOrNull(base.hasExternalId(), base.getExternalId()));
 		set(builder::setResponseMessage, message);
+		return builder.build();
+	}
+
+	/**
+	 * Same as {@link #responseMeta(RequestBase, String)}, but prefers the vendor execution id
+	 * carried on an accepted/success {@link CommandResult} (its {@code tid}) over the request's
+	 * own correlation id, so callers tracking async command progress (e.g. mission-autonomy's
+	 * execution dispatcher) learn the vendor's real execution id instead of just their own.
+	 */
+	private ResponseMeta responseMeta(RequestBase base, CommandResult result) {
+		ResponseMeta.Builder builder = ResponseMeta.newBuilder()
+				.setTid(base.getTid())
+				.setSn(base.getSn())
+				.setTimestamp(ProtobufHelpers.now());
+
+		set(builder::setAssetId, valueOrNull(base.hasAssetId(), base.getAssetId()));
+		String vendorExecutionId = result.getExternalExecutionId();
+		String externalId = vendorExecutionId != null && !vendorExecutionId.isBlank()
+				? vendorExecutionId : valueOrNull(base.hasExternalId(), base.getExternalId());
+		set(builder::setExternalId, externalId);
+		set(builder::setResponseMessage, result.getMessage());
 		return builder.build();
 	}
 
