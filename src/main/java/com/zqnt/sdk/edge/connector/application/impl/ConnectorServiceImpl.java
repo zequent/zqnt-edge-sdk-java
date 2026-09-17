@@ -285,6 +285,49 @@ public class ConnectorServiceImpl implements ConnectorService {
 	}
 
 	@Override
+	public CompletableFuture<AssetDTO> redeemAssetClaim(String code, AssetDTO asset) {
+		var request = RedeemAssetClaimRequest.newBuilder()
+				.setBase(RequestBase.newBuilder()
+						.setTid(UUID.randomUUID().toString())
+						.setTimestamp(ProtobufHelpers.now())
+						.setSn(asset.getSn())
+						.build())
+				.setCode(code)
+				.setAsset(protoJsonMapper.map(asset))
+				.build();
+
+		// Deliberately not callAsyncWithRetry: a redemption that actually landed and whose response
+		// was lost would, on retry, be refused as already-spent — reporting failure for a pairing
+		// that succeeded. The single call either creates the asset or does not.
+		return callAsync(request, connectorServiceStub::redeemAssetClaim)
+				.thenApply(response -> {
+					if (response.getHasErrors() || !response.hasAsset()) {
+						log.error("Claim code refused for sn={} — it may be unknown, expired, revoked, "
+								+ "already used up, or not valid for this kind of device; the platform does "
+								+ "not say which. Create a new code in the console and try again.", asset.getSn());
+						return null;
+					}
+					log.info("Claim redeemed for sn={} — asset created", asset.getSn());
+					return protoJsonMapper.map(response.getAsset());
+				});
+	}
+
+	@Override
+	public CompletableFuture<AssetDTO> ensureAsset(AssetDTO asset, String claimCode) {
+		return getAssetBySn(asset.getSn()).thenCompose(existing -> {
+			if (existing != null) {
+				return CompletableFuture.completedFuture(existing);
+			}
+			if (claimCode == null || claimCode.isBlank()) {
+				log.warn("No asset registered for sn={}, and no claim code to pair one with. Create the "
+						+ "asset in the console, or pair this device with a code.", asset.getSn());
+				return CompletableFuture.completedFuture(null);
+			}
+			return redeemAssetClaim(claimCode, asset);
+		});
+	}
+
+	@Override
 	public CompletableFuture<Boolean> deRegisterAsset(String id) {
 		var request = RequestBase.newBuilder()
 						.setTid(UUID.randomUUID().toString())

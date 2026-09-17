@@ -30,6 +30,31 @@ public interface ConnectorService {
 
 	CompletableFuture<Boolean> deRegisterAsset(String id);
 
+	/**
+	 * Trade a one-time claim code for an asset, and return it.
+	 *
+	 * <p>The only ConnectorService call an adapter makes with no platform identity: the code
+	 * <em>is</em> the credential. The organization the created asset lands in comes from the claim,
+	 * never from {@code asset} — whose organization field connector ignores — because that is the
+	 * one thing an adapter cannot decide for itself and nobody can correct afterwards.</p>
+	 *
+	 * <p>Completes with {@code null} when the code is refused. Every refusal answers identically —
+	 * unknown, expired, revoked, exhausted, or not valid for this kind of device — so that the call
+	 * cannot be used to discover which codes exist. Do not guess which one it was.</p>
+	 */
+	CompletableFuture<AssetDTO> redeemAssetClaim(String code, AssetDTO asset);
+
+	/**
+	 * Look {@code asset}'s serial number up, and redeem {@code claimCode} for it only if it is
+	 * unknown.
+	 *
+	 * <p>The lookup comes first for a reason beyond saving a call: a claim is single-use, so after
+	 * the first successful pairing there is nothing left to redeem, and an adapter that tried anyway
+	 * would log a refusal on every restart. With no code supplied this reports what it found and
+	 * creates nothing — the resting state for devices provisioned in the console.</p>
+	 */
+	CompletableFuture<AssetDTO> ensureAsset(AssetDTO asset, String claimCode);
+
 	// Mission/Task CRUD was retired from ConnectorService in favor of the capability-execution
 	// model (Application/SkillExecution). Use MissionAutonomyService's capability
 	// execution APIs (via the client SDK) instead.
