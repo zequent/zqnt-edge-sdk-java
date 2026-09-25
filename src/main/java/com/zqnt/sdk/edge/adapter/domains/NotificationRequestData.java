@@ -1,17 +1,17 @@
 package com.zqnt.sdk.edge.adapter.domains;
 
+import com.zqnt.utils.events.proto.CommandExecutionStatus;
 import com.zqnt.utils.events.proto.NotificationEventType;
 import com.zqnt.utils.events.proto.NotificationSeverity;
 import com.zqnt.utils.mission.proto.MissionStatus;
 import com.zqnt.utils.mission.proto.MissionType;
-import com.zqnt.utils.mission.proto.TaskStatus;
-import com.zqnt.utils.mission.proto.TaskTypeProto;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 @Data
 @Builder
@@ -25,7 +25,7 @@ public class NotificationRequestData {
 
 	// Only one of the following event fields should be set (oneof)
 	private AssetStatusEventData assetStatusEvent;
-	private TaskEventData taskEvent;
+	private CommandExecutionEventData commandExecutionEvent;
 	private MissionEventData missionEvent;
 	private NotificationSeverity severity;
 	private NotificationEventType eventType;
@@ -41,18 +41,25 @@ public class NotificationRequestData {
 		private String message;
 	}
 
+	/**
+	 * Vendor-neutral lifecycle feedback for one physical command dispatched to an edge adapter.
+	 * Replaces the retired {@code TaskEventData} now that Task/Mission execution has been
+	 * superseded by the capability-execution model.
+	 */
 	@Data
 	@Builder
 	@NoArgsConstructor
 	@AllArgsConstructor
-	public static class TaskEventData {
-		private String taskId;
-		private TaskTypeProto taskType;
-		private TaskStatus status;
+	public static class CommandExecutionEventData {
+		private String externalExecutionId;
+		private String commandId;
+		private CommandExecutionStatus status;
 		private Float progress;
 		private String message;
-		/** Set when taskType == TASK_TYPE_EXTERNAL; carries the edge-device-specific task name. */
-		private String externalTaskType;
+		private Map<String, Object> output;
+		private String error;
+		private LocalDateTime occurredAt;
+		private String assetSn;
 	}
 
 	@Data

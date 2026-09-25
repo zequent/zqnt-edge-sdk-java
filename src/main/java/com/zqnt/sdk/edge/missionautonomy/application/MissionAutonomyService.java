@@ -1,23 +1,15 @@
 package com.zqnt.sdk.edge.missionautonomy.application;
 
-import com.zqnt.utils.mission.proto.*;
-import com.zqnt.utils.missionautonomy.domains.MissionDTO;
+import com.zqnt.utils.mission.proto.GetSchedulerRequest;
 import com.zqnt.utils.missionautonomy.domains.SchedulerDTO;
-import com.zqnt.utils.missionautonomy.domains.TaskDTO;
 
 import java.util.concurrent.CompletableFuture;
 
 public interface MissionAutonomyService {
 
-	CompletableFuture<MissionDTO> createMission(CreateMissionRequest createMissionRequest);
-
-	CompletableFuture<MissionDTO> updateMission(UpdateMissionRequest updateMissionRequest);
-
-	CompletableFuture<MissionDTO> getMission(GetMissionRequest getRequest);
-
-	CompletableFuture<TaskDTO> getTask(GetTaskRequest getTaskRequest);
-
-	CompletableFuture<TaskDTO> getTaskByFlightId(GetTaskByFlightIdRequest getTaskRequest);
+	// Mission/Task CRUD was retired from MissionAutonomyService in favor of the
+	// capability-execution model (Application/SkillExecution); the underlying
+	// gRPC methods no longer exist.
 
 	CompletableFuture<SchedulerDTO> getScheduler(GetSchedulerRequest getSchedulerRequest);
 }
