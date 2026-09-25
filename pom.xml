@@ -72,7 +72,7 @@
         <dependency>
             <groupId>com.zqnt</groupId>
             <artifactId>zqnt-utils-java</artifactId>
-            <version>1.0.0-PR6-58e4c0f-SNAPSHOT</version>
+            <version>1.0.0-PR6-3e38eaa-SNAPSHOT</version>
         </dependency>
         <!-- gRPC dependencies -->
 

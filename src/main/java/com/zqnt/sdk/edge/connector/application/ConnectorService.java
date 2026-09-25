@@ -6,6 +6,8 @@ import com.zqnt.utils.asset.domains.AssetPayloadDTO;
 import com.zqnt.utils.asset.domains.SubAssetDTO;
 import com.zqnt.utils.connector.proto.SkillContractProtoDTO;
 import com.zqnt.utils.connector.proto.SkillContractStatus;
+import com.zqnt.utils.media.proto.MediaFileProtoDTO;
+import com.zqnt.utils.media.proto.RegisterMediaFileRequest;
 import com.zqnt.utils.missionautonomy.domains.OrganizationDTO;
 import com.zqnt.utils.missionautonomy.domains.SchedulerDTO;
 
@@ -111,4 +113,11 @@ public interface ConnectorService {
 
 	/** Full replacement, not a merge. */
 	CompletableFuture<SkillContractProtoDTO> setSkillContractPermissions(String id, List<String> requiredPermissions);
+
+	// Media: a file the device uploaded to the platform's inbox bucket. The connector attributes it to
+	// the execution that was running on the asset, moves it under its organization/application folder
+	// and records it. Idempotent per source object key, so a retried report is harmless.
+
+	/** Registers an uploaded file; {@code base} is filled in when the caller leaves it unset. */
+	CompletableFuture<MediaFileProtoDTO> registerMediaFile(RegisterMediaFileRequest request);
 }

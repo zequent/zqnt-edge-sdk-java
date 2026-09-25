@@ -8,6 +8,8 @@ import com.zqnt.utils.asset.domains.SubAssetDTO;
 import com.zqnt.utils.common.proto.RequestBase;
 import com.zqnt.utils.connector.proto.*;
 import com.zqnt.utils.core.ProtobufHelpers;
+import com.zqnt.utils.media.proto.MediaFileProtoDTO;
+import com.zqnt.utils.media.proto.RegisterMediaFileRequest;
 import com.zqnt.utils.mission.proto.CreateSchedulerRequest;
 import com.zqnt.utils.mission.proto.DeleteSchedulerRequest;
 import com.zqnt.utils.mission.proto.GetSchedulerRequest;
@@ -542,5 +544,13 @@ public class ConnectorServiceImpl implements ConnectorService {
 				});
 	}
 
-
+	@Override
+	public CompletableFuture<MediaFileProtoDTO> registerMediaFile(RegisterMediaFileRequest request) {
+		var builder = request.toBuilder();
+		if (!request.hasBase()) {
+			builder.setBase(RequestBase.newBuilder().setSn(request.getAssetSn())
+					.setTid(UUID.randomUUID().toString()).setTimestamp(ProtobufHelpers.now()));
+		}
+		return callAsyncWithRetry(builder.build(), connectorServiceStub::registerMediaFile);
+	}
 }
