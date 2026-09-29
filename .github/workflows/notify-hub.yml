@@ -16,8 +16,8 @@ jobs:
     steps:
       - name: Send component-released to zqnt-hub
         env:
-          # Fine-grained token with "Contents: write" on zequent/zqnt-hub (repository_dispatch).
-          GH_TOKEN: ${{ secrets.HUB_DISPATCH_TOKEN }}
+          # The org-wide GH_PAT; repository_dispatch needs write access to zequent/zqnt-hub.
+          GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
           gh api repos/zequent/zqnt-hub/dispatches \
             -f event_type=component-released \
