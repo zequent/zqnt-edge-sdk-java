@@ -1,0 +1,25 @@
+# .github/workflows/notify-hub.yml -- installed from zqnt-hub/scripts/changelog/templates.
+#
+# When a real release is published (not a draft, not a pre-release), tell the hub so its changelog
+# picks it up. PR previews never create a GitHub Release, so they never get here.
+
+name: Notify Hub
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  notify:
+    if: ${{ !github.event.release.prerelease && !github.event.release.draft }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send component-released to zqnt-hub
+        env:
+          # Fine-grained token with "Contents: write" on zequent/zqnt-hub (repository_dispatch).
+          GH_TOKEN: ${{ secrets.HUB_DISPATCH_TOKEN }}
+        run: |
+          gh api repos/zequent/zqnt-hub/dispatches \
+            -f event_type=component-released \
+            -F "client_payload[component]=${{ github.event.repository.name }}" \
+            -F "client_payload[version]=${{ github.event.release.tag_name }}"

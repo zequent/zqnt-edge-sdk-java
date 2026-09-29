@@ -1,0 +1,23 @@
+# .github/release.yml -- installed from zqnt-hub/scripts/changelog/templates.
+#
+# Tells GitHub how to group the generated release notes. The hub's changelog reads the same PR
+# titles and sorts them itself, but the GitHub Release page stays readable this way too, and
+# internal work never shows up in either.
+
+changelog:
+  exclude:
+    labels: [internal, ci, chore, dependencies, tests]
+    authors: [dependabot, "dependabot[bot]"]
+  categories:
+    - title: Breaking changes
+      labels: [breaking]
+    - title: Security
+      labels: [security]
+    - title: New
+      labels: [feature]
+    - title: Improved
+      labels: [improvement]
+    - title: Fixed
+      labels: [fix]
+    - title: Other changes
+      labels: ["*"]

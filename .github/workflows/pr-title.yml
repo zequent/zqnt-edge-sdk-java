@@ -1,0 +1,66 @@
+# .github/workflows/pr-title.yml -- installed from zqnt-hub/scripts/changelog/templates.
+#
+# The customer-facing changelog is written from PR titles, so every PR title has to say, in a
+# customer's words, what changed -- with a type the changelog sorts by:
+#   feat: ...      New
+#   fix: ...       Fixed
+#   perf: ...      Improved
+#   security: ...  Security
+#   feat!: ...     Breaking change (any type with !)
+#   chore/ci/build/test/docs/refactor: ...   internal, left out of the changelog
+#
+# The matching label is set as well, which is what .github/release.yml groups the GitHub release
+# notes by. Dependabot and the long-lived line merges (refactor/..., refactoring/...) are exempt:
+# they are not changes a customer reads about.
+
+name: PR Title
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  pull-requests: write
+  issues: write
+
+jobs:
+  title:
+    if: ${{ github.actor != 'dependabot[bot]' && !startsWith(github.head_ref, 'refactor') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            perf
+            security
+            chore
+            ci
+            build
+            test
+            docs
+            refactor
+
+      - name: Label by type
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TITLE: ${{ github.event.pull_request.title }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          type=$(echo "$TITLE" | sed -E 's/^([a-z]+)(\([^)]*\))?(!)?:.*/\1\3/')
+          case "$type" in
+            *!)       label=breaking ;;
+            feat)     label=feature ;;
+            fix)      label=fix ;;
+            perf)     label=improvement ;;
+            security) label=security ;;
+            *)        label=internal ;;
+          esac
+          gh label create "$label" --repo "$GITHUB_REPOSITORY" --force --color ededed >/dev/null
+          for old in breaking feature fix improvement security internal; do
+            [ "$old" = "$label" ] || gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label "$old" >/dev/null 2>&1 || true
+          done
+          gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label "$label"
