@@ -44,7 +44,22 @@
         <lombok.version>1.18.42</lombok.version>
         <protobuf.version>3.25.9</protobuf.version>
         <proguard.version>7.9.1</proguard.version>
+        <jackson.version>2.18.11</jackson.version>
     </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- jackson 2.x arrives transitively through zqnt-utils-java (2.18.9 at the pinned
+                 preview); pinned here for CVE-2026-68497 until the next utils preview is picked up. -->
+            <dependency>
+                <groupId>com.fasterxml.jackson</groupId>
+                <artifactId>jackson-bom</artifactId>
+                <version>${jackson.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <!-- GitHub Packages Repository -->
     <repositories>
