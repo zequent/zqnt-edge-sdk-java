@@ -20,15 +20,18 @@ on:
     types: [opened, edited, synchronize, reopened]
 
 permissions:
-  pull-requests: write
-  issues: write
+  contents: read
 
 jobs:
   title:
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
     if: ${{ github.actor != 'dependabot[bot]' && !startsWith(github.head_ref, 'refactor') }}
     runs-on: ubuntu-latest
     steps:
-      - uses: amannn/action-semantic-pull-request@v5
+      - uses: amannn/action-semantic-pull-request@e32d7e603df1aa1ba07e981f2a23455dee596825 # v5
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
