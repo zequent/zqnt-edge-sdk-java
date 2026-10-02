@@ -44,7 +44,22 @@
         <lombok.version>1.18.42</lombok.version>
         <protobuf.version>3.25.9</protobuf.version>
         <proguard.version>7.9.1</proguard.version>
+        <jackson.version>2.18.11</jackson.version>
     </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- jackson 2.x arrives transitively through zqnt-utils-java (2.18.9 at the pinned
+                 preview); pinned here for CVE-2026-68497 until the next utils preview is picked up. -->
+            <dependency>
+                <groupId>com.fasterxml.jackson</groupId>
+                <artifactId>jackson-bom</artifactId>
+                <version>${jackson.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <!-- GitHub Packages Repository -->
     <repositories>
@@ -63,10 +78,21 @@
 
 
     <dependencies>
+        <!-- Pinned to the real, published 2.0.0 release (not the floating 1.0.0-SNAPSHOT this used
+             to reference): a SNAPSHOT resolves to whatever was most recently deployed/installed
+             locally at build time, which is not reproducible and had drifted enough to break the
+             build outright. This is the 2.0.0-track branch (main); the 1.3.0-track branch pins
+             1.3.0 instead. See zqnt-protos' README "Versioning" section for the platform-wide
+             convention. -->
         <dependency>
             <groupId>com.zqnt</groupId>
             <artifactId>zqnt-utils-java</artifactId>
-            <version>1.3.0</version>
+            <version>1.0.0-PR6-3e38eaa-SNAPSHOT</version>
+        </dependency>
+        <!-- Platform token verification (auth/PlatformTokenVerifier); version from jackson-bom -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
         </dependency>
         <!-- gRPC dependencies -->
 
