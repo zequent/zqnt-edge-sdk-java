@@ -2,10 +2,9 @@ package com.zqnt.sdk.edge.missionautonomy.application.impl;
 
 import com.zqnt.sdk.edge.application.ProtoJsonMapper;
 import com.zqnt.sdk.edge.missionautonomy.application.MissionAutonomyService;
-import com.zqnt.utils.mission.proto.*;
-import com.zqnt.utils.missionautonomy.domains.MissionDTO;
+import com.zqnt.utils.mission.proto.GetSchedulerRequest;
+import com.zqnt.utils.mission.proto.MissionAutonomyServiceGrpc;
 import com.zqnt.utils.missionautonomy.domains.SchedulerDTO;
-import com.zqnt.utils.missionautonomy.domains.TaskDTO;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import lombok.extern.slf4j.Slf4j;
@@ -152,86 +151,9 @@ public class MissionAutonomyServiceImpl implements MissionAutonomyService {
 		}
 	}
 
-	@Override
-	public CompletableFuture<MissionDTO> createMission(CreateMissionRequest createMissionRequest) {
-		return callAsyncWithRetry(createMissionRequest, missionAutonomyServiceStub::createMission)
-				.thenApply(response -> {
-					if (response.getHasErrors()) {
-						log.error("Error creating mission: {}", response.getError());
-						return null;
-					}
-					return protoJsonMapper.map(response.getMission());
-				})
-				.exceptionally(t -> {
-					log.error("Error creating mission", t);
-					return null;
-				});
-	}
-
-	@Override
-	public CompletableFuture<MissionDTO> updateMission(UpdateMissionRequest updateMissionRequest) {
-        // TODO: Map response to MissionData
-        return callAsyncWithRetry(updateMissionRequest, missionAutonomyServiceStub::updateMission)
-				.thenApply(response -> {
-					if (response.getHasErrors()) {
-						log.error("Error updating mission: {}", response.getError());
-						return null;
-					}
-					return protoJsonMapper.map(response.getMission());
-				})
-				.exceptionally(t -> {
-					log.error("Error updating mission", t);
-					return null;
-				});
-	}
-
-	@Override
-	public CompletableFuture<MissionDTO> getMission(GetMissionRequest getRequest) {
-		return callAsyncWithRetry(getRequest, missionAutonomyServiceStub::getMission)
-				.thenApply(response -> {
-					if (response.getHasErrors()) {
-						log.error("Error getting mission: {}", response.getError());
-						return null;
-					}
-					return protoJsonMapper.map(response.getMission());
-				})
-				.exceptionally(t -> {
-					log.error("Error getting mission", t);
-					return null;
-				});
-	}
-
-	@Override
-	public CompletableFuture<TaskDTO> getTask(GetTaskRequest getTaskRequest) {
-		return callAsyncWithRetry(getTaskRequest, missionAutonomyServiceStub::getTask)
-				.thenApply(response -> {
-					if (response.getHasErrors()) {
-						log.error("Error getting task: {}", response.getError());
-						return null;
-					}
-					return protoJsonMapper.map(response.getTask());
-				})
-				.exceptionally(t -> {
-					log.error("Error getting task", t);
-					return null;
-				});
-	}
-
-	@Override
-	public CompletableFuture<TaskDTO> getTaskByFlightId(GetTaskByFlightIdRequest getTaskRequest) {
-		return callAsyncWithRetry(getTaskRequest, missionAutonomyServiceStub::getTaskByFlightId)
-				.thenApply(response -> {
-					if (response.getHasErrors()) {
-						log.error("Error getting task by flight id: {}", response.getError());
-						return null;
-					}
-					return protoJsonMapper.map(response.getTask());
-				})
-				.exceptionally(t -> {
-					log.error("Error getting task by flight id", t);
-					return null;
-				});
-	}
+	// Mission/Task CRUD was retired from MissionAutonomyService in favor of the
+	// capability-execution model (Application/SkillExecution); the underlying
+	// gRPC methods no longer exist.
 
 	@Override
 	public CompletableFuture<SchedulerDTO> getScheduler(GetSchedulerRequest getSchedulerRequest) {
