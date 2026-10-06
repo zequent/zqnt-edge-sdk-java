@@ -93,7 +93,7 @@ class EdgeAdapterV3GrpcServiceImplTest {
 				.build();
 	}
 
-	private static ExecuteCommandResponse execute(Adapter adapter, String commandId, Map<String, Object> params) {
+	private static ExecuteCommandResponse execute(EdgeAdapterService adapter, String commandId, Map<String, Object> params) {
 		Capture<ExecuteCommandResponse> capture = new Capture<>();
 		new EdgeAdapterV3GrpcServiceImpl(adapter).executeCommand(request(commandId, params), capture);
 		assertNotNull(capture.value, "a response");
@@ -127,6 +127,66 @@ class EdgeAdapterV3GrpcServiceImplTest {
 		assertEquals(CommandState.COMMAND_STATE_REJECTED, response.getResult().getState());
 		assertEquals(EdgeAdapterV3GrpcServiceImpl.NOT_SUPPORTED_CODE, response.getResult().getError().getCode());
 		assertEquals(ErrorCategory.ERROR_CATEGORY_INVALID_ARGUMENT, response.getResult().getError().getCategory());
+	}
+
+	/** An adapter that declares take-off ASYNCHRONOUS: its typed takeOff answers a plain success. */
+	private static final class DeclaringAdapter implements EdgeAdapterService {
+		@Override
+		public CompletableFuture<CommandResult> takeOff(TakeOffRequest request) {
+			return CompletableFuture.completedFuture(CommandResult.success("climbing", request.getSn()));
+		}
+
+		@Override
+		public CompletableFuture<com.zqnt.sdk.edge.adapter.domains.CurrentCapabilities> getCapabilities(String sn) {
+			var takeoff = new com.zqnt.sdk.edge.adapter.domains.Capability();
+			takeoff.setCommand("flight.takeoff");
+			takeoff.setCompletion(com.zqnt.protos.capability.v3.CompletionMode.COMPLETION_MODE_ASYNCHRONOUS);
+			takeoff.setCompletionEvent("flight.takeoff.completed");
+			var light = new com.zqnt.sdk.edge.adapter.domains.Capability();
+			light.setCommand("dock.light");
+			light.setCompletion(com.zqnt.protos.capability.v3.CompletionMode.COMPLETION_MODE_ON_REPLY);
+			return CompletableFuture.completedFuture(new com.zqnt.sdk.edge.adapter.domains.CurrentCapabilities(
+					sn, null, java.util.Set.of(takeoff, light), System.currentTimeMillis()));
+		}
+
+		@Override
+		public CompletableFuture<CommandResult> sendCustomCommand(String sn, String componentId, String commandType,
+				Map<String, Object> params) {
+			return "dock.light".equals(commandType)
+					? CompletableFuture.completedFuture(CommandResult.success("on", sn))
+					: CompletableFuture.completedFuture(CommandResult.notImplemented("unknown " + commandType, sn));
+		}
+	}
+
+	@Test
+	void aDeclaredAsynchronousCommandWaitsEvenWhenItsHandlerAnsweredAPlainSuccess() {
+		var response = execute(new DeclaringAdapter(), "flight.takeoff",
+				Map.of("latitude", 52.5, "longitude", 13.4, "altitude", 40));
+
+		assertEquals(CommandState.COMMAND_STATE_ACCEPTED, response.getResult().getState());
+		assertEquals("cx-1", response.getResult().getCommandExecutionId());
+	}
+
+	@Test
+	void aDeclaredOnReplyCommandIsDoneOnItsReply() {
+		var response = execute(new DeclaringAdapter(), "dock.light", Map.of("on", "true"));
+
+		assertEquals(CommandState.COMMAND_STATE_SUCCEEDED, response.getResult().getState());
+	}
+
+	@Test
+	void theCompletionModeIsPublishedWithTheCapability() {
+		var takeoff = new com.zqnt.sdk.edge.adapter.domains.Capability();
+		takeoff.setCommand("flight.takeoff");
+		takeoff.setCompletion(com.zqnt.protos.capability.v3.CompletionMode.COMPLETION_MODE_ASYNCHRONOUS);
+		takeoff.setCompletionEvent("flight.takeoff.completed");
+		takeoff.getEvents().add(new com.zqnt.sdk.edge.adapter.domains.CapabilityEvent("flight.takeoff.completed", "airborne", null));
+
+		var v3 = EdgeAdapterV3GrpcServiceImpl.capability(takeoff);
+
+		assertEquals(com.zqnt.protos.capability.v3.CompletionMode.COMPLETION_MODE_ASYNCHRONOUS, v3.getCompletion());
+		assertEquals("flight.takeoff.completed", v3.getCompletionEvent());
+		assertEquals("flight.takeoff.completed", v3.getEvents(0).getName());
 	}
 
 	@Test

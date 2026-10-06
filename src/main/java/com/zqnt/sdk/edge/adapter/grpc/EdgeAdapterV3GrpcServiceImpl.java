@@ -9,6 +9,7 @@ import com.zqnt.protos.capability.v3.CapabilitySource;
 import com.zqnt.protos.capability.v3.CapabilityState;
 import com.zqnt.protos.capability.v3.CommandResult;
 import com.zqnt.protos.capability.v3.CommandState;
+import com.zqnt.protos.capability.v3.CompletionMode;
 import com.zqnt.protos.capability.v3.SnapshotState;
 import com.zqnt.protos.capability.v3.Target;
 import com.zqnt.protos.capability.v3.TargetType;
@@ -86,9 +87,11 @@ public class EdgeAdapterV3GrpcServiceImpl extends EdgeAdapterServiceGrpc.EdgeAda
 				? command.getTarget().getRef() : null;
 		Map<String, Object> params = structToMap(command.getParams());
 		execute(sn, componentId, command.getCommandId(), params)
+				.thenCompose(result -> completionFor(sn, command.getCommandId(), result)
+						.thenApply(completion -> commandResult(command.getCommandId(), request.getCommandExecutionId(),
+								result, completion)))
 				.thenAccept(result -> {
-					responseObserver.onNext(ExecuteCommandResponse.newBuilder()
-							.setResult(commandResult(command.getCommandId(), request.getCommandExecutionId(), result)).build());
+					responseObserver.onNext(ExecuteCommandResponse.newBuilder().setResult(result).build());
 					responseObserver.onCompleted();
 				})
 				.exceptionally(error -> {
@@ -175,17 +178,69 @@ public class EdgeAdapterV3GrpcServiceImpl extends EdgeAdapterServiceGrpc.EdgeAda
 		};
 	}
 
+	/** How long the adapter's capability list is reused to look up a command's completion mode. */
+	static final long COMPLETION_CACHE_MILLIS = 30_000;
+
+	private record CachedCapabilities(java.util.Collection<com.zqnt.sdk.edge.adapter.domains.Capability> capabilities,
+			long until) {
+	}
+
+	private final Map<String, CachedCapabilities> capabilityCache = new java.util.concurrent.ConcurrentHashMap<>();
+
+	/**
+	 * The command's declared completion mode -- looked up only when it decides something: a
+	 * successful result that did not itself say "accepted". Never fails the command: an adapter
+	 * whose capabilities cannot be read is left to its result, as before.
+	 */
+	CompletableFuture<CompletionMode> completionFor(String sn, String commandId,
+			com.zqnt.sdk.edge.adapter.domains.CommandResult result) {
+		if (!result.isSuccess() || (result.isAccepted() && result.getExternalExecutionId() != null)) {
+			return CompletableFuture.completedFuture(CompletionMode.COMPLETION_MODE_UNSPECIFIED);
+		}
+		CachedCapabilities cached = capabilityCache.get(sn);
+		CompletableFuture<java.util.Collection<com.zqnt.sdk.edge.adapter.domains.Capability>> capabilities =
+				cached != null && cached.until() > System.currentTimeMillis()
+						? CompletableFuture.completedFuture(cached.capabilities())
+						: edgeAdapterService.getCapabilities(sn).thenApply(current -> {
+							var list = current == null || current.getCapabilities() == null
+									? java.util.List.<com.zqnt.sdk.edge.adapter.domains.Capability>of()
+									: (java.util.Collection<com.zqnt.sdk.edge.adapter.domains.Capability>) current.getCapabilities();
+							capabilityCache.put(sn, new CachedCapabilities(list, System.currentTimeMillis() + COMPLETION_CACHE_MILLIS));
+							return list;
+						});
+		return capabilities
+				.thenApply(list -> list.stream()
+						.filter(capability -> commandId.equals(capability.getCommand()) && capability.getCompletion() != null)
+						.map(com.zqnt.sdk.edge.adapter.domains.Capability::getCompletion)
+						.findFirst().orElse(CompletionMode.COMPLETION_MODE_UNSPECIFIED))
+				.exceptionally(error -> CompletionMode.COMPLETION_MODE_UNSPECIFIED);
+	}
+
 	static CommandResult commandResult(String commandId, String commandExecutionId,
 			com.zqnt.sdk.edge.adapter.domains.CommandResult result) {
+		return commandResult(commandId, commandExecutionId, result, CompletionMode.COMPLETION_MODE_UNSPECIFIED);
+	}
+
+	/**
+	 * The adapter's result in v3 states. A success is ACCEPTED -- the outcome follows as an event --
+	 * when the adapter said so (accepted, with its own execution id) or when the command's
+	 * capability declares {@code ASYNCHRONOUS}; otherwise it is SUCCEEDED. Without the declaration a
+	 * take-off that answered a plain success would have counted as done while the aircraft climbed.
+	 */
+	static CommandResult commandResult(String commandId, String commandExecutionId,
+			com.zqnt.sdk.edge.adapter.domains.CommandResult result, CompletionMode completion) {
 		CommandResult.Builder builder = CommandResult.newBuilder()
 				.setCommandExecutionId(commandExecutionId == null ? "" : commandExecutionId)
 				.setCommandId(commandId == null ? "" : commandId);
 		if (result.isSuccess()) {
-			if (result.isAccepted() && result.getExternalExecutionId() != null) {
-				return builder.setState(CommandState.COMMAND_STATE_ACCEPTED)
-						.setResult(Struct.newBuilder().putFields("external_execution_id",
-								Value.newBuilder().setStringValue(result.getExternalExecutionId()).build()))
-						.build();
+			boolean adapterAccepted = result.isAccepted() && result.getExternalExecutionId() != null;
+			if (adapterAccepted || completion == CompletionMode.COMPLETION_MODE_ASYNCHRONOUS) {
+				builder.setState(CommandState.COMMAND_STATE_ACCEPTED);
+				if (result.getExternalExecutionId() != null) {
+					builder.setResult(Struct.newBuilder().putFields("external_execution_id",
+							Value.newBuilder().setStringValue(result.getExternalExecutionId()).build()));
+				}
+				return builder.build();
 			}
 			return builder.setState(CommandState.COMMAND_STATE_SUCCEEDED).build();
 		}
@@ -233,6 +288,24 @@ public class EdgeAdapterV3GrpcServiceImpl extends EdgeAdapterServiceGrpc.EdgeAda
 		if (value.getSkillId() != null) builder.setSkillId(value.getSkillId());
 		if (value.getProvider() != null) builder.setProvider(value.getProvider());
 		builder.setSourceValue(value.getSource() == null ? CapabilitySource.CAPABILITY_SOURCE_EDGE_ADAPTER_VALUE : value.getSource().getNumber());
+		if (value.getCompletion() != null) builder.setCompletion(value.getCompletion());
+		if (value.getCompletionEvent() != null) builder.setCompletionEvent(value.getCompletionEvent());
+		if (value.getErrors() != null) {
+			value.getErrors().forEach(error -> builder.addErrors(com.zqnt.protos.capability.v3.CapabilityErrorSpec.newBuilder()
+					.setCode(error.getCode() == null ? "" : error.getCode())
+					.setDescription(error.getDescription() == null ? "" : error.getDescription())));
+		}
+		if (value.getEvents() != null) {
+			value.getEvents().forEach(event -> {
+				var spec = com.zqnt.protos.capability.v3.CapabilityEventSpec.newBuilder()
+						.setName(event.getName() == null ? "" : event.getName())
+						.setDescription(event.getDescription() == null ? "" : event.getDescription());
+				if (event.getPayloadSchema() != null && !event.getPayloadSchema().isEmpty()) {
+					spec.setPayloadSchema(mapToStruct(event.getPayloadSchema()));
+				}
+				builder.addEvents(spec);
+			});
+		}
 		return builder.build();
 	}
 

@@ -45,6 +45,15 @@ public class Capability {
 	private CapabilitySourceProto source;
 	/** Human-readable origin, e.g. "DJI Adapter" or "Zequent Platform" for built-ins. */
 	private String provider;
+	/**
+	 * Whether the reply finishes the command ({@code ON_REPLY}: a cover, a light) or a later
+	 * CommandExecutionEvent does ({@code ASYNCHRONOUS}: take-off, go-to, return home, a mission).
+	 * Unset leaves it to the result: an accepted result with an external execution id waits, any
+	 * other success is done. Not the same as {@link #events}, which list what a Skill can react to.
+	 */
+	private com.zqnt.protos.capability.v3.CompletionMode completion;
+	/** For ASYNCHRONOUS: the event in {@link #events} that reports the outcome. */
+	private String completionEvent;
 
 	public Capability(String command, String description, CapabilityState state, String unavailableReason,
 			Map<String, String> metadata) {
