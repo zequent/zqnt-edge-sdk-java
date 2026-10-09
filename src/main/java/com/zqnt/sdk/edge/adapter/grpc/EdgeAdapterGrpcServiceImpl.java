@@ -18,7 +18,6 @@ import com.zqnt.utils.edge.sdk.proto.EdgeAdapterServiceGrpc;
 import io.grpc.stub.StreamObserver;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -28,6 +27,7 @@ import java.util.concurrent.ExecutionException;
 // Capability, colliding with this SDK's own com.zqnt.sdk.edge.adapter.domains versions above.
 
 @Slf4j
+@SuppressWarnings("deprecation")
 public class EdgeAdapterGrpcServiceImpl extends EdgeAdapterServiceGrpc.EdgeAdapterServiceImplBase {
 
 	private final EdgeAdapterService edgeAdapterService;
@@ -48,7 +48,7 @@ public class EdgeAdapterGrpcServiceImpl extends EdgeAdapterServiceGrpc.EdgeAdapt
 					.setTimestamp(Timestamps.fromMillis(current.getTimestamp()))
 					.setSnapshotState(CapabilitySnapshotState.CAPABILITY_SNAPSHOT_STATE_CURRENT);
 			if (current.getCapabilities() != null) {
-				current.getCapabilities().stream().map(this::toProto).forEach(capabilities::addCapabilities);
+				current.getCapabilities().stream().map(CapabilityMappers::toV2).forEach(capabilities::addCapabilities);
 			}
 			responseObserver.onNext(AssetCapabilitiesResponse.newBuilder().setCapabilities(capabilities).build());
 			responseObserver.onCompleted();
@@ -58,86 +58,6 @@ public class EdgeAdapterGrpcServiceImpl extends EdgeAdapterServiceGrpc.EdgeAdapt
 			responseObserver.onCompleted();
 			return null;
 		});
-	}
-
-	private com.zqnt.utils.devicecontrol.proto.Capability toProto(
-			com.zqnt.sdk.edge.adapter.domains.Capability value) {
-		com.zqnt.utils.devicecontrol.proto.Capability.Builder builder =
-				com.zqnt.utils.devicecontrol.proto.Capability.newBuilder()
-						.setCommandId(value.getCommand() == null ? "" : value.getCommand())
-						.setDisplayName(value.getCommand() == null ? "" : value.getCommand())
-						.setState(value.getState() == null
-								? CapabilityState.CAPABILITY_STATE_AVAILABLE : value.getState());
-		if (value.getDescription() != null) builder.setDescription(value.getDescription());
-		if (value.getUnavailableReason() != null) builder.setUnavailableReason(value.getUnavailableReason());
-		if (value.getMetadata() != null) builder.putAllMetadata(value.getMetadata());
-		if (value.getConstraints() != null) builder.setConstraints(mapToStruct(value.getConstraints()));
-		if (value.getInputSchema() != null) builder.setInputSchema(mapToStruct(value.getInputSchema()));
-		if (value.getOutputSchema() != null) builder.setOutputSchema(mapToStruct(value.getOutputSchema()));
-		if (value.getSchemaVersion() != null) builder.setSchemaVersion(value.getSchemaVersion());
-		CapabilityTarget.Builder target = CapabilityTarget.newBuilder().setType(value.getTargetType() == null
-				? CapabilityTargetType.CAPABILITY_TARGET_TYPE_ASSET : value.getTargetType());
-		if (value.getTargetRef() != null) target.setTargetRef(value.getTargetRef());
-		builder.setTarget(target);
-		if (value.getErrors() != null) {
-			value.getErrors().forEach(error -> builder.addErrors(toProto(error)));
-		}
-		if (value.getEvents() != null) {
-			value.getEvents().forEach(event -> builder.addEvents(toProto(event)));
-		}
-		if (value.getRequirements() != null) builder.setRequirements(toProto(value.getRequirements()));
-		if (value.getSkillId() != null) builder.setSkillId(value.getSkillId());
-		if (value.getSource() != null) builder.setSource(value.getSource());
-		if (value.getProvider() != null) builder.setProvider(value.getProvider());
-		return builder.build();
-	}
-
-	private CapabilityErrorProto toProto(com.zqnt.sdk.edge.adapter.domains.CapabilityError value) {
-		CapabilityErrorProto.Builder builder = CapabilityErrorProto.newBuilder()
-				.setCode(value.getCode() == null ? "" : value.getCode());
-		if (value.getDescription() != null) builder.setDescription(value.getDescription());
-		return builder.build();
-	}
-
-	private CapabilityEventProto toProto(com.zqnt.sdk.edge.adapter.domains.CapabilityEvent value) {
-		CapabilityEventProto.Builder builder = CapabilityEventProto.newBuilder()
-				.setName(value.getName() == null ? "" : value.getName())
-				.setPayloadSchema(mapToStruct(value.getPayloadSchema() == null ? Map.of() : value.getPayloadSchema()));
-		if (value.getDescription() != null) builder.setDescription(value.getDescription());
-		return builder.build();
-	}
-
-	private CapabilityRequirementsProto toProto(com.zqnt.sdk.edge.adapter.domains.CapabilityRequirements value) {
-		return CapabilityRequirementsProto.newBuilder()
-				.addAllAssetTypes(value.getAssetTypes() == null ? List.of() : value.getAssetTypes())
-				.addAllPayloads(value.getPayloads() == null ? List.of() : value.getPayloads())
-				.addAllRuntimeFeatures(value.getRuntimeFeatures() == null ? List.of() : value.getRuntimeFeatures())
-				.setProperties(mapToStruct(value.getProperties() == null ? Map.of() : value.getProperties()))
-				.build();
-	}
-
-	private Struct mapToStruct(Map<String, Object> values) {
-		Struct.Builder builder = Struct.newBuilder();
-		values.forEach((key, value) -> builder.putFields(key, objectToValue(value)));
-		return builder.build();
-	}
-
-	private Value objectToValue(Object value) {
-		Value.Builder builder = Value.newBuilder();
-		if (value == null) return builder.setNullValue(com.google.protobuf.NullValue.NULL_VALUE).build();
-		if (value instanceof Boolean bool) return builder.setBoolValue(bool).build();
-		if (value instanceof Number number) return builder.setNumberValue(number.doubleValue()).build();
-		if (value instanceof Map<?, ?> map) {
-			Map<String, Object> normalized = new java.util.LinkedHashMap<>();
-			map.forEach((key, item) -> normalized.put(String.valueOf(key), item));
-			return builder.setStructValue(mapToStruct(normalized)).build();
-		}
-		if (value instanceof Iterable<?> iterable) {
-			com.google.protobuf.ListValue.Builder list = com.google.protobuf.ListValue.newBuilder();
-			iterable.forEach(item -> list.addValues(objectToValue(item)));
-			return builder.setListValue(list).build();
-		}
-		return builder.setStringValue(String.valueOf(value)).build();
 	}
 
 	@Override
@@ -156,7 +76,7 @@ public class EdgeAdapterGrpcServiceImpl extends EdgeAdapterServiceGrpc.EdgeAdapt
 					} else {
 						builder.setHasErrors(true).setError(GlobalErrorMessage.newBuilder()
 								.setErrorMessage(result.getMessage())
-								.setErrorCode(result.isNotImplemented() ? ErrorCode.ERROR_CODE_CLIENT : ErrorCode.ERROR_CODE_ASSET)
+								.setErrorCode(result.isNotImplemented() || result.isRejected() ? ErrorCode.ERROR_CODE_CLIENT : ErrorCode.ERROR_CODE_ASSET)
 								.setTimestamp(ProtobufHelpers.now()));
 					}
 					responseObserver.onNext(builder.build());
@@ -429,7 +349,7 @@ public class EdgeAdapterGrpcServiceImpl extends EdgeAdapterServiceGrpc.EdgeAdapt
 					.build();
 		}
 
-		ErrorCode errorCode = result.isNotImplemented() ? ErrorCode.ERROR_CODE_CLIENT : ErrorCode.ERROR_CODE_ASSET;
+		ErrorCode errorCode = result.isNotImplemented() || result.isRejected() ? ErrorCode.ERROR_CODE_CLIENT : ErrorCode.ERROR_CODE_ASSET;
 		if (result.isNotImplemented()) {
 			log.warn("Command not implemented: {} for SN: {}", result.getMessage(), base.getSn());
 		}

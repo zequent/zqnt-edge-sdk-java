@@ -28,6 +28,7 @@ import java.util.concurrent.CompletableFuture;
  * {@code builtInSchema} and the Python SDK's command catalog), so one command means one thing across
  * every SDK.
  */
+@SuppressWarnings("deprecation")
 public final class BuiltInCommandDispatch {
 
 	private BuiltInCommandDispatch() {
@@ -112,6 +113,11 @@ public final class BuiltInCommandDispatch {
 	/** True when {@code commandType} is one of the ids {@link #dispatch} can route. */
 	public static boolean isBuiltIn(String commandType) {
 		return BUILT_IN_IDS.contains(commandType);
+	}
+
+	/** Every id {@link #dispatch} can route. */
+	public static java.util.Set<String> builtInIds() {
+		return BUILT_IN_IDS;
 	}
 
 	private static final java.util.Set<String> BUILT_IN_IDS = java.util.Set.of(

@@ -2,7 +2,10 @@ package com.zqnt.sdk.edge.adapter.application;
 
 import com.zqnt.sdk.edge.adapter.domains.*;
 
+import com.zqnt.sdk.edge.adapter.registry.CommandRegistry;
+
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -42,8 +45,19 @@ import java.util.concurrent.CompletableFuture;
  *   physically moves or affects the asset must either use one of those prefixes or be added to
  *   that gate explicitly — don't introduce a new movement-capable domain silently.</li>
  * </ul>
+ *
+ * <h2>Writing commands once</h2>
+ * New adapters extend {@link RegistryEdgeAdapter} and register each command with its schemas and a
+ * handler; capabilities are derived from that registry and every typed method below is routed onto
+ * it. The typed methods are deprecated: they remain the v2 compatibility layer for adapters that
+ * implement them directly.
  */
 public interface EdgeAdapterService {
+
+	/** The adapter's command registry, when it has one; commands found there are executed through it. */
+	default Optional<CommandRegistry> commandRegistry() {
+		return Optional.empty();
+	}
 
 	default CompletableFuture<CommandResult> sendCustomCommand(String sn, String componentId,
 			String commandType, Map<String, Object> params) {
@@ -55,6 +69,7 @@ public interface EdgeAdapterService {
 	 * Execute takeoff command
 	 * Default: Returns NOT_IMPLEMENTED error
 	 */
+	@Deprecated
 	default CompletableFuture<CommandResult> takeOff(TakeOffRequest request) {
 		return CompletableFuture.completedFuture(
 				CommandResult.notImplemented("takeOff is not implemented for this asset", request.getSn())
@@ -65,6 +80,7 @@ public interface EdgeAdapterService {
 	 * Return to home position
 	 * Default: Returns NOT_IMPLEMENTED error
 	 */
+	@Deprecated
 	default CompletableFuture<CommandResult> returnToHome(ReturnToHomeRequest request) {
 		return CompletableFuture.completedFuture(
 				CommandResult.notImplemented("returnToHome is not implemented for this asset", request.getSn())
@@ -75,6 +91,7 @@ public interface EdgeAdapterService {
 	 * Navigate to coordinates
 	 * Default: Returns NOT_IMPLEMENTED error
 	 */
+	@Deprecated
 	default CompletableFuture<CommandResult> goTo(GoToRequest request) {
 		return CompletableFuture.completedFuture(
 				CommandResult.notImplemented("goTo is not implemented for this asset", request.getSn())
@@ -85,6 +102,7 @@ public interface EdgeAdapterService {
 	 * Enter manual control mode
 	 * Default: Returns NOT_IMPLEMENTED error
 	 */
+	@Deprecated
 	default CompletableFuture<CommandResult> enterManualControl(String sn) {
 		return CompletableFuture.completedFuture(
 				CommandResult.notImplemented("enterManualControl is not implemented for this asset", sn)
@@ -95,6 +113,7 @@ public interface EdgeAdapterService {
 	 * Exit manual control mode
 	 * Default: Returns NOT_IMPLEMENTED error
 	 */
+	@Deprecated
 	default CompletableFuture<CommandResult> exitManualControl(String sn) {
 		return CompletableFuture.completedFuture(
 				CommandResult.notImplemented("exitManualControl is not implemented for this asset", sn)
@@ -116,6 +135,7 @@ public interface EdgeAdapterService {
 	 * Open dock cover
 	 * Default: Returns NOT_IMPLEMENTED error
 	 */
+	@Deprecated
 	default CompletableFuture<CommandResult> openCover(String sn) {
 		return CompletableFuture.completedFuture(
 				CommandResult.notImplemented("openCover is not implemented for this asset", sn)
@@ -126,6 +146,7 @@ public interface EdgeAdapterService {
 	 * Close dock cover
 	 * Default: Returns NOT_IMPLEMENTED error
 	 */
+	@Deprecated
 	default CompletableFuture<CommandResult> closeCover(String sn, Boolean force) {
 		return CompletableFuture.completedFuture(
 				CommandResult.notImplemented("closeCover is not implemented for this asset", sn)
@@ -136,6 +157,7 @@ public interface EdgeAdapterService {
 	 * Start charging the drone
 	 * Default: Returns NOT_IMPLEMENTED error
 	 */
+	@Deprecated
 	default CompletableFuture<CommandResult> startCharging(String sn) {
 		return CompletableFuture.completedFuture(
 				CommandResult.notImplemented("startCharging is not implemented for this asset", sn)
@@ -146,6 +168,7 @@ public interface EdgeAdapterService {
 	 * Stop charging the drone
 	 * Default: Returns NOT_IMPLEMENTED error
 	 */
+	@Deprecated
 	default CompletableFuture<CommandResult> stopCharging(String sn) {
 		return CompletableFuture.completedFuture(
 				CommandResult.notImplemented("stopCharging is not implemented for this asset", sn)
@@ -156,6 +179,7 @@ public interface EdgeAdapterService {
 	 * Reboot the asset
 	 * Default: Returns NOT_IMPLEMENTED error
 	 */
+	@Deprecated
 	default CompletableFuture<CommandResult> rebootAsset(String sn) {
 		return CompletableFuture.completedFuture(
 				CommandResult.notImplemented("rebootAsset is not implemented for this asset", sn)
@@ -166,6 +190,7 @@ public interface EdgeAdapterService {
 	 * Boot up the sub-asset (drone)
 	 * Default: Returns NOT_IMPLEMENTED error
 	 */
+	@Deprecated
 	default CompletableFuture<CommandResult> bootUpSubAsset(String sn) {
 		return CompletableFuture.completedFuture(
 				CommandResult.notImplemented("bootUpSubAsset is not implemented for this asset", sn)
@@ -176,6 +201,7 @@ public interface EdgeAdapterService {
 	 * Boot down the sub-asset (drone)
 	 * Default: Returns NOT_IMPLEMENTED error
 	 */
+	@Deprecated
 	default CompletableFuture<CommandResult> bootDownSubAsset(String sn) {
 		return CompletableFuture.completedFuture(
 				CommandResult.notImplemented("bootDownSubAsset is not implemented for this asset", sn)
@@ -186,6 +212,7 @@ public interface EdgeAdapterService {
 	 * Point camera at coordinates
 	 * Default: Returns NOT_IMPLEMENTED error
 	 */
+	@Deprecated
 	default CompletableFuture<CommandResult> lookAt(LookAtRequest lookAtRequest) {
 		return CompletableFuture.completedFuture(
 				CommandResult.notImplemented("lookAt is not implemented for this asset", lookAtRequest.getSn())
@@ -197,6 +224,7 @@ public interface EdgeAdapterService {
 	 * @param takePhotoRequest
 	 * @return
 	 */
+	@Deprecated
 	default CompletableFuture<CommandResult> takePhoto (TakePhotoRequest takePhotoRequest) {
 		return CompletableFuture.completedFuture(
 				CommandResult.notImplemented("takePhoto is not implemented for this asset", takePhotoRequest.getSn())
@@ -208,6 +236,7 @@ public interface EdgeAdapterService {
 	 * Change camera lens
 	 * Default: Returns NOT_IMPLEMENTED error
 	 */
+	@Deprecated
 	default CompletableFuture<CommandResult> changeLens(ChangeLensRequest request) {
 		return CompletableFuture.completedFuture(
 			CommandResult.notImplemented("changeLens is not implemented for this asset", request.getSn())
@@ -218,6 +247,7 @@ public interface EdgeAdapterService {
 	 * Change camera zoom
 	 * Default: Returns NOT_IMPLEMENTED error
 	 */
+	@Deprecated
 	default CompletableFuture<CommandResult> changeZoom(ChangeZoomRequest request) {
 		return CompletableFuture.completedFuture(
 			CommandResult.notImplemented("changeZoom is not implemented for this asset", request.getSn())
@@ -228,6 +258,7 @@ public interface EdgeAdapterService {
 	 * Start live stream
 	 * Default: Returns NOT_IMPLEMENTED error
 	 */
+	@Deprecated
 	default CompletableFuture<CommandResult> startLiveStream(LiveStreamStartRequest request) {
 		return CompletableFuture.completedFuture(
 				CommandResult.notImplemented("startLiveStream is not implemented for this asset", request.getSn())
@@ -238,6 +269,7 @@ public interface EdgeAdapterService {
 	 * Stop live stream
 	 * Default: Returns NOT_IMPLEMENTED error
 	 */
+	@Deprecated
 	default CompletableFuture<CommandResult> stopLiveStream(LiveStreamStopRequest request) {
 		return CompletableFuture.completedFuture(
 				CommandResult.notImplemented("stopLiveStream is not implemented for this asset", request.getSn())
@@ -248,6 +280,7 @@ public interface EdgeAdapterService {
 	 * Enter remote debug mode
 	 * Default: Returns NOT_IMPLEMENTED error
 	 */
+	@Deprecated
 	default CompletableFuture<CommandResult> enterRemoteDebugMode(String sn) {
 		return CompletableFuture.completedFuture(
 			CommandResult.notImplemented("enterRemoteDebugMode is not implemented for this asset", sn)
@@ -258,6 +291,7 @@ public interface EdgeAdapterService {
 	 * Close/Exit remote debug mode
 	 * Default: Returns NOT_IMPLEMENTED error
 	 */
+	@Deprecated
 	default CompletableFuture<CommandResult> closeRemoteDebugMode(String sn) {
 		return CompletableFuture.completedFuture(
 			CommandResult.notImplemented("closeRemoteDebugMode is not implemented for this asset", sn)
@@ -268,6 +302,7 @@ public interface EdgeAdapterService {
 	 * Change air conditioner mode
 	 * Default: Returns NOT_IMPLEMENTED error
 	 */
+	@Deprecated
 	default CompletableFuture<CommandResult> changeAcMode(String sn, String mode) {
 		return CompletableFuture.completedFuture(
 			CommandResult.notImplemented("changeAcMode is not implemented for this asset", sn)
@@ -278,6 +313,7 @@ public interface EdgeAdapterService {
 	 * Enable or disable the livestream split-screen view.
 	 * Default: Returns NOT_IMPLEMENTED error
 	 */
+	@Deprecated
 	default CompletableFuture<CommandResult> liveStreamSplitScreen(String sn, boolean enabled) {
 		return CompletableFuture.completedFuture(
 			CommandResult.notImplemented("liveStreamSplitScreen is not implemented for this asset", sn)
@@ -287,6 +323,7 @@ public interface EdgeAdapterService {
 	 * Enable gimbal tracking
 	 * Default: Returns NOT_IMPLEMENTED error
 	 */
+	@Deprecated
 	default CompletableFuture<CommandResult> enableGimbalTracking(String sn, boolean enabled) {
 		return CompletableFuture.completedFuture(
 			CommandResult.notImplemented("enableGimbalTracking is not implemented for this asset", sn)
