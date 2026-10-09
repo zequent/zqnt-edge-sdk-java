@@ -98,4 +98,14 @@ class CommandRegistryTest {
 		assertEquals(3, changes.get());
 		assertEquals("dock.cover_state", registry.telemetryFields().get(0).getKey());
 	}
+
+	@Test
+	void requestsAreValues() {
+		var request = new CommandRequest("SN-1", null, "dock.open_cover", Map.of("force", true), "capexec:r:n");
+
+		assertEquals(request, new CommandRequest("SN-1", null, "dock.open_cover", Map.of("force", true), "capexec:r:n"));
+		assertEquals("CommandRequest[sn=SN-1, targetRef=null, commandId=dock.open_cover, params={force=true}, "
+				+ "commandExecutionId=capexec:r:n]", request.toString());
+		assertEquals(Map.of(), new CommandRequest("SN-1", null, "x", null, null).params());
+	}
 }

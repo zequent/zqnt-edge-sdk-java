@@ -125,7 +125,7 @@ class EdgeAdapterV3GrpcServiceImplTest {
 		var response = execute(new Adapter(), "vendor.nope.nothing", Map.of());
 
 		assertEquals(CommandState.COMMAND_STATE_REJECTED, response.getResult().getState());
-		assertEquals(EdgeAdapterV3GrpcServiceImpl.NOT_SUPPORTED_CODE, response.getResult().getError().getCode());
+		assertEquals(com.zqnt.sdk.edge.adapter.registry.CommandRegistry.NOT_SUPPORTED, response.getResult().getError().getCode());
 		assertEquals(ErrorCategory.ERROR_CATEGORY_INVALID_ARGUMENT, response.getResult().getError().getCategory());
 	}
 
