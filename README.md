@@ -36,7 +36,7 @@ public class AcmeDrone extends RegistryEdgeAdapter {
 | What | v3 (preferred) | Against an older platform (UNIMPLEMENTED) |
 |---|---|---|
 | Command progress/completion | `LiveDataServiceImpl` with an `EdgeGatewayClient` sends the events adapters already produce (`CommandExecutionEventData`) as `EdgeGatewayService.PublishCommandEvent`, under the platform's `command_execution_id` | v2 notification stream, as before |
-| Capabilities | `CapabilityReporter.track(sn)`: `ReportCapabilities` at start and on every registry change, retried until it succeeds | `RemoteControlService.ReportAssetRuntime` (no telemetry fields) |
+| Capabilities | `CapabilityReporter.track(sn)`: `ReportCapabilities` at start and on every registry change, retried until it succeeds | `RemoteControlService.ReportAssetRuntime` (no telemetry fields); it replaces the whole runtime snapshot, so an adapter that reports detected payloads passes its own `V2CapabilityReport` to `EdgeGatewayClient` |
 | Telemetry, detections, alerts | `TelemetryPublisher.publish(TelemetrySample / DetectionBatch / Alert)`: one long-lived `TelemetryIngestService` stream per kind, reconnected with backoff | `ProduceTelemetry`/`ProduceDetection` with the shared fields only: a sample's `details` and all alerts are dropped |
 
 After UNIMPLEMENTED the SDK stays on v2 for 10 minutes, then tries v3 again. Every command event

@@ -30,18 +30,31 @@ public class EdgeGatewayClient {
 	private final EdgeGatewayServiceGrpc.EdgeGatewayServiceStub gateway;
 	private final RemoteControlServiceGrpc.RemoteControlServiceStub remoteControl;
 	private final V3Availability availability;
+	private final V2CapabilityReport v2Report;
 
 	/** {@code remoteControlChannel}: the channel to remote-control, with the edge credential interceptor. */
 	public EdgeGatewayClient(Channel remoteControlChannel) {
+		this(remoteControlChannel, null);
+	}
+
+	/** {@code v2Report}: replaces the built-in v2 capability report, e.g. to carry detected payloads. */
+	public EdgeGatewayClient(Channel remoteControlChannel, V2CapabilityReport v2Report) {
 		this(EdgeGatewayServiceGrpc.newStub(remoteControlChannel), RemoteControlServiceGrpc.newStub(remoteControlChannel),
-				new V3Availability("zqnt.edge.v3.EdgeGatewayService"));
+				new V3Availability("zqnt.edge.v3.EdgeGatewayService"), v2Report);
 	}
 
 	public EdgeGatewayClient(EdgeGatewayServiceGrpc.EdgeGatewayServiceStub gateway,
 			RemoteControlServiceGrpc.RemoteControlServiceStub remoteControl, V3Availability availability) {
+		this(gateway, remoteControl, availability, null);
+	}
+
+	public EdgeGatewayClient(EdgeGatewayServiceGrpc.EdgeGatewayServiceStub gateway,
+			RemoteControlServiceGrpc.RemoteControlServiceStub remoteControl, V3Availability availability,
+			V2CapabilityReport v2Report) {
 		this.gateway = gateway;
 		this.remoteControl = remoteControl;
 		this.availability = availability;
+		this.v2Report = v2Report == null ? this::reportV2 : v2Report;
 	}
 
 	public boolean commandEventsAvailable() {
@@ -64,15 +77,15 @@ public class EdgeGatewayClient {
 	}
 
 	/**
-	 * Reports the asset's full capability snapshot: v3 {@code ReportCapabilities}, or v2
-	 * {@code ReportAssetRuntime} against an older platform (telemetry fields are v3 only).
+	 * Reports the asset's full capability snapshot: v3 {@code ReportCapabilities}, or the
+	 * {@link V2CapabilityReport} against an older platform (telemetry fields are v3 only).
 	 *
 	 * @return the revision the platform accepted
 	 */
 	public CompletableFuture<String> reportCapabilities(String sn, CurrentCapabilities current) {
 		String revision = UUID.randomUUID().toString();
 		if (!availability.available()) {
-			return reportV2(sn, current, revision);
+			return v2Report.report(sn, current, revision);
 		}
 		CapabilitySet set = CapabilityMappers.toV3(sn, current).toBuilder().setRevision(revision).build();
 		return this.<ReportCapabilitiesRequest, com.zqnt.protos.edge.v3.ReportCapabilitiesResponse>call(
@@ -82,7 +95,7 @@ public class EdgeGatewayClient {
 					if (error == null) return CompletableFuture.completedFuture(accepted);
 					if (V3Availability.isUnimplemented(error)) {
 						availability.markUnavailable();
-						return reportV2(sn, current, revision);
+						return v2Report.report(sn, current, revision);
 					}
 					return CompletableFuture.<String>failedFuture(error);
 				})

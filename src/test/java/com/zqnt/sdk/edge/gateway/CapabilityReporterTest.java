@@ -17,6 +17,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -89,6 +90,23 @@ class CapabilityReporterTest {
 		assertEquals("SN-1", v2Reports.get(0).getAssetSn());
 		assertEquals(List.of("flight.takeoff", "vendor.acme.beep"), v2Reports.get(0).getCapabilitiesList().stream()
 				.map(com.zqnt.utils.devicecontrol.proto.Capability::getCommandId).toList());
+		assertTrue(v3Reports.isEmpty());
+	}
+
+	@Test
+	void anAdapterCanReplaceTheV2Report() throws Exception {
+		grpc = TestGrpc.serving(new RemoteControl());
+		List<String> reported = TestGrpc.list();
+		reporter = new CapabilityReporter(new RegistryEdgeAdapterTest.Drone(), new EdgeGatewayClient(grpc.channel(),
+				(sn, current, revision) -> {
+					reported.add(sn + ":" + current.getCapabilities().size());
+					return CompletableFuture.completedFuture(revision);
+				}));
+
+		reporter.track("SN-1").get();
+
+		assertEquals(List.of("SN-1:2"), reported);
+		assertTrue(v2Reports.isEmpty());
 		assertTrue(v3Reports.isEmpty());
 	}
 
