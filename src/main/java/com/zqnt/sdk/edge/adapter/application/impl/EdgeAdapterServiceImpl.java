@@ -7,6 +7,7 @@ import com.zqnt.sdk.edge.config.EdgeClientConfig;
 
 import java.util.concurrent.CompletableFuture;
 
+@SuppressWarnings("deprecation")
 public class EdgeAdapterServiceImpl implements EdgeAdapterService {
 
 	private final EdgeClientConfig config;

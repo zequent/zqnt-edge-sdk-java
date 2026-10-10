@@ -3,11 +3,17 @@ package com.zqnt.sdk.edge.livedata.application.impl;
 import com.zqnt.sdk.edge.adapter.domains.DetectionRequestData;
 import com.zqnt.sdk.edge.adapter.domains.NotificationRequestData;
 import com.zqnt.sdk.edge.adapter.domains.TelemetryRequestData;
+import com.zqnt.sdk.edge.gateway.CommandEventMapper;
+import com.zqnt.sdk.edge.gateway.CommandExecutions;
+import com.zqnt.sdk.edge.gateway.EdgeGatewayClient;
+import com.zqnt.sdk.edge.gateway.V3Availability;
 import com.zqnt.sdk.edge.livedata.application.DetectionMapper;
 import com.zqnt.sdk.edge.livedata.application.LiveDataService;
 import com.zqnt.sdk.edge.livedata.application.NotificationMapper;
 import com.zqnt.sdk.edge.livedata.application.TelemetryMapper;
+import com.zqnt.protos.capability.v3.CommandEvent;
 import com.zqnt.utils.common.proto.DetectionBatch;
+import com.zqnt.utils.events.proto.CommandExecutionEvent;
 import com.zqnt.utils.events.proto.ProduceNotificationRequest;
 import com.zqnt.utils.livedata.proto.LiveDataResponse;
 import com.zqnt.utils.livedata.proto.LiveDataServiceGrpc;
@@ -33,6 +39,11 @@ import java.util.concurrent.atomic.AtomicInteger;
  * device map before the RPC is opened, so even an immediate asynchronous transport failure
  * can only remove its own stream generation. Reconnects continue indefinitely with capped
  * exponential backoff.
+ *
+ * <p>With an {@link EdgeGatewayClient}, a notification carrying a command execution event goes to the
+ * platform as a v3 {@code PublishCommandEvent} under the platform's {@code command_execution_id};
+ * against a platform without v3 it takes the v2 notification stream as before. Either way the event
+ * carries {@code occurred_at} (now, when the adapter gave none).
  */
 @Slf4j
 public class LiveDataServiceImpl implements LiveDataService {
@@ -45,6 +56,8 @@ public class LiveDataServiceImpl implements LiveDataService {
 	private final DetectionMapper detectionMapper;
 	private final NotificationMapper notificationMapper;
 	private final LiveDataServiceGrpc.LiveDataServiceStub liveDataServiceStub;
+	private final EdgeGatewayClient gateway;
+	private final CommandExecutions executions;
 
 	private final Map<String, StreamState<ProduceTelemetryRequest>> activeStreams = new ConcurrentHashMap<>();
 	private final Map<String, StreamState<DetectionBatch>> activeDetectionStreams = new ConcurrentHashMap<>();
@@ -72,9 +85,18 @@ public class LiveDataServiceImpl implements LiveDataService {
 							   DetectionMapper detectionMapper,
 							   NotificationMapper notificationMapper,
 							   LiveDataServiceGrpc.LiveDataServiceStub liveDataServiceStub) {
-		this(telemetryMapper, detectionMapper, notificationMapper, liveDataServiceStub,
-				Executors.newSingleThreadScheduledExecutor(), INITIAL_RECONNECT_DELAY_SECONDS,
-				MAX_RECONNECT_DELAY_SECONDS);
+		this(telemetryMapper, detectionMapper, notificationMapper, liveDataServiceStub, null);
+	}
+
+	/** {@code gateway}: where command events go over v3; null keeps them on the v2 notification stream. */
+	public LiveDataServiceImpl(TelemetryMapper telemetryMapper,
+							   DetectionMapper detectionMapper,
+							   NotificationMapper notificationMapper,
+							   LiveDataServiceGrpc.LiveDataServiceStub liveDataServiceStub,
+							   EdgeGatewayClient gateway) {
+		this(telemetryMapper, detectionMapper, notificationMapper, liveDataServiceStub, gateway,
+				CommandExecutions.shared(), Executors.newSingleThreadScheduledExecutor(),
+				INITIAL_RECONNECT_DELAY_SECONDS, MAX_RECONNECT_DELAY_SECONDS);
 	}
 
 	LiveDataServiceImpl(TelemetryMapper telemetryMapper,
@@ -84,10 +106,25 @@ public class LiveDataServiceImpl implements LiveDataService {
 						ScheduledExecutorService reconnectScheduler,
 						int initialReconnectDelaySeconds,
 						int maxReconnectDelaySeconds) {
+		this(telemetryMapper, detectionMapper, notificationMapper, liveDataServiceStub, null,
+				CommandExecutions.shared(), reconnectScheduler, initialReconnectDelaySeconds, maxReconnectDelaySeconds);
+	}
+
+	LiveDataServiceImpl(TelemetryMapper telemetryMapper,
+						DetectionMapper detectionMapper,
+						NotificationMapper notificationMapper,
+						LiveDataServiceGrpc.LiveDataServiceStub liveDataServiceStub,
+						EdgeGatewayClient gateway,
+						CommandExecutions executions,
+						ScheduledExecutorService reconnectScheduler,
+						int initialReconnectDelaySeconds,
+						int maxReconnectDelaySeconds) {
 		this.telemetryMapper = telemetryMapper;
 		this.detectionMapper = detectionMapper;
 		this.notificationMapper = notificationMapper;
 		this.liveDataServiceStub = liveDataServiceStub;
+		this.gateway = gateway;
+		this.executions = executions;
 		this.reconnectScheduler = reconnectScheduler;
 		this.initialReconnectDelaySeconds = initialReconnectDelaySeconds;
 		this.maxReconnectDelaySeconds = maxReconnectDelaySeconds;
@@ -150,6 +187,36 @@ public class LiveDataServiceImpl implements LiveDataService {
 
 	@Override
 	public CompletableFuture<Void> produceNotification(String deviceSn, ProduceNotificationRequest notificationRequest) {
+		if (notificationRequest != null && notificationRequest.getEvent().hasCommandExecution()) {
+			return produceCommandEvent(deviceSn, notificationRequest);
+		}
+		return sendNotification(deviceSn, notificationRequest);
+	}
+
+	private CompletableFuture<Void> produceCommandEvent(String deviceSn, ProduceNotificationRequest request) {
+		CommandExecutionEvent event = CommandEventMapper.withOccurredAt(request.getEvent().getCommandExecution());
+		ProduceNotificationRequest v2 = request.toBuilder()
+				.setEvent(request.getEvent().toBuilder().setCommandExecution(event)).build();
+		CommandEvent v3 = CommandEventMapper.toV3(event, deviceSn, executions);
+		CompletableFuture<Void> sent;
+		if (gateway == null || !gateway.commandEventsAvailable()) {
+			sent = sendNotification(deviceSn, v2);
+		} else {
+			sent = gateway.publishCommandEvent(v3)
+					.handle((ignored, error) -> {
+						if (error == null) return CompletableFuture.<Void>completedFuture(null);
+						if (V3Availability.isUnimplemented(error)) return sendNotification(deviceSn, v2);
+						log.warn("v3 command event {} for {} failed: {}", v3.getCommandExecutionId(), deviceSn, error.getMessage());
+						return CompletableFuture.<Void>failedFuture(error);
+					})
+					.thenCompose(future -> future);
+		}
+		return sent.thenRun(() -> {
+			if (CommandEventMapper.isTerminal(v3.getState())) executions.finished(v3.getCommandExecutionId());
+		});
+	}
+
+	private CompletableFuture<Void> sendNotification(String deviceSn, ProduceNotificationRequest notificationRequest) {
 		closedNotificationStreams.remove(deviceSn);
 		return send(deviceSn, notificationRequest, "notification", activeNotificationStreams,
 				notificationReconnectAttempts, pendingNotificationReconnects, closedNotificationStreams,

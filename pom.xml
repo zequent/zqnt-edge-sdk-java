@@ -87,7 +87,9 @@
         <dependency>
             <groupId>com.zqnt</groupId>
             <artifactId>zqnt-utils-java</artifactId>
-            <version>2.0.0</version>
+            <!-- 3.0.0 preview with the v3 contracts (zequent/zqnt-utils-java#7); back to the
+                 release version after the release. -->
+            <version>1.0.0-PR7-436ef79-SNAPSHOT</version>
         </dependency>
         <!-- Platform token verification (auth/PlatformTokenVerifier); version from jackson-bom -->
         <dependency>

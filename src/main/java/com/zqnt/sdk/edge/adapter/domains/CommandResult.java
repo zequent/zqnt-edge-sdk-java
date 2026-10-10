@@ -2,9 +2,10 @@ package com.zqnt.sdk.edge.adapter.domains;
 
 import lombok.*;
 
+import java.util.Map;
+
 @Getter
 @Setter
-@AllArgsConstructor
 @NoArgsConstructor
 @ToString
 public class CommandResult {
@@ -22,6 +23,20 @@ public class CommandResult {
 	 * cancellation back to the right execution.
 	 */
 	private String externalExecutionId;
+	/** Machine-readable reason of a {@link CommandResultType#REJECTED} or failed result, e.g. {@code command.invalid_params}. */
+	private String errorCode;
+	/** The command's output, matching its output schema; reported as the v3 result of a SUCCEEDED command. */
+	private Map<String, Object> output;
+
+	public CommandResult(boolean success, String message, String tid, String sn, CommandResultType resultType,
+			String externalExecutionId) {
+		this.success = success;
+		this.message = message;
+		this.tid = tid;
+		this.sn = sn;
+		this.resultType = resultType;
+		this.externalExecutionId = externalExecutionId;
+	}
 
 	/**
 	 * Result type enum
@@ -32,7 +47,9 @@ public class CommandResult {
 		 * {@link #getExternalExecutionId()} as the vendor's own execution/task id. */
 		ACCEPTED,
 		ERROR,
-		NOT_IMPLEMENTED
+		NOT_IMPLEMENTED,
+		/** Refused before it ran (invalid params, precondition); {@link #getErrorCode()} says why. */
+		REJECTED
 	}
 
 	/**
@@ -56,6 +73,20 @@ public class CommandResult {
 	 */
 	public static CommandResult accepted(String message, String externalExecutionId, String sn) {
 		return new CommandResult(true, message, null, sn, CommandResultType.ACCEPTED, externalExecutionId);
+	}
+
+	/** A success that carries the command's output. */
+	public static CommandResult success(String message, String sn, Map<String, Object> output) {
+		CommandResult result = success(message, sn);
+		result.setOutput(output);
+		return result;
+	}
+
+	/** Refused before it ran; {@code errorCode} is machine-readable, {@code message} is for people. */
+	public static CommandResult rejected(String errorCode, String message, String sn) {
+		CommandResult result = new CommandResult(false, message, null, sn, CommandResultType.REJECTED, null);
+		result.setErrorCode(errorCode);
+		return result;
 	}
 
 	/**
@@ -92,6 +123,10 @@ public class CommandResult {
 	 */
 	public boolean isAccepted() {
 		return resultType == CommandResultType.ACCEPTED;
+	}
+
+	public boolean isRejected() {
+		return resultType == CommandResultType.REJECTED;
 	}
 
 }
