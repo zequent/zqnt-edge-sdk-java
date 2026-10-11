@@ -7,7 +7,7 @@
     <servers>
         <server>
             <!-- MUST match distributionManagement.repository.id in pom.xml -->
-            <id>zqnt-utils-repo</id>
+            <id>zqnt-api-repo</id>
             <!-- Provided by workflow as PACKAGES_TOKEN (can be GITHUB_TOKEN or a PAT) -->
             <username>${env.GITHUB_ACTOR}</username>
             <password>${env.GITHUB_TOKEN}</password>
