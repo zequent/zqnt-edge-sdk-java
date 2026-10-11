@@ -12,3 +12,7 @@ Both directions of an adapter's gRPC traffic are authenticated (package `com.zqn
   everything. `ZQNT_EDGE_AUTH_DISABLED=true` accepts unauthenticated commands (local SITL only).
 
 `EdgeAuthConfig.fromEnv()` reads all three.
+
+## License
+
+Licensed under the [Apache License, Version 2.0](LICENSE); see [NOTICE](NOTICE).
