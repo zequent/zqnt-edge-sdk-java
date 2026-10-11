@@ -56,6 +56,7 @@ public abstract class RegistryEdgeAdapter implements EdgeAdapterService {
 	public CompletableFuture<CurrentCapabilities> getCapabilities(String sn) {
 		CurrentCapabilities current = CurrentCapabilities.of(sn, assetType, commands.capabilities());
 		current.setTelemetryFields(commands.telemetryFields());
+		current.setPayloads(commands.payloads(sn));
 		return CompletableFuture.completedFuture(current);
 	}
 

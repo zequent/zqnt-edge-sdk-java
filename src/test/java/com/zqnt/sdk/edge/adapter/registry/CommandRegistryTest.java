@@ -1,5 +1,6 @@
 package com.zqnt.sdk.edge.adapter.registry;
 
+import com.zqnt.protos.capability.v3.Payload;
 import com.zqnt.protos.capability.v3.TelemetryField;
 import com.zqnt.protos.capability.v3.TelemetryValueType;
 import com.zqnt.sdk.edge.adapter.domains.CommandResult;
@@ -107,5 +108,20 @@ class CommandRegistryTest {
 		assertEquals("CommandRequest[sn=SN-1, targetRef=null, commandId=dock.open_cover, params={force=true}, "
 				+ "commandExecutionId=capexec:r:n]", request.toString());
 		assertEquals(Map.of(), new CommandRequest("SN-1", null, "x", null, null).params());
+	}
+
+	@Test
+	void payloadsAreKeptPerAssetAndNeedUniqueRefs() {
+		CommandRegistry registry = new CommandRegistry();
+		Payload camera = Payload.newBuilder().setRef("camera-0").setKind("camera").build();
+
+		registry.setPayloads("SN-1", List.of(camera));
+
+		assertEquals(List.of(camera), registry.payloads("SN-1"));
+		assertEquals(List.of(), registry.payloads("SN-2"));
+		assertThrows(IllegalArgumentException.class, () -> registry.setPayloads("SN-1", List.of(camera, camera)));
+		assertThrows(IllegalArgumentException.class, () -> registry.setPayloads("SN-1", List.of(Payload.getDefaultInstance())));
+		registry.setPayloads("SN-1", null);
+		assertEquals(List.of(), registry.payloads("SN-1"));
 	}
 }

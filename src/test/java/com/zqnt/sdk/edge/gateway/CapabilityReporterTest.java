@@ -1,6 +1,7 @@
 package com.zqnt.sdk.edge.gateway;
 
 import com.zqnt.protos.capability.v3.CapabilitySet;
+import com.zqnt.protos.capability.v3.Payload;
 import com.zqnt.protos.capability.v3.TelemetryField;
 import com.zqnt.protos.capability.v3.TelemetryValueType;
 import com.zqnt.protos.edge.v3.EdgeGatewayServiceGrpc;
@@ -77,6 +78,24 @@ class CapabilityReporterTest {
 		assertEquals("SN-1", v3Reports.get(0).getAssetSn());
 		assertEquals(2, v3Reports.get(0).getCapabilitiesCount());
 		assertEquals("drone.gear", v3Reports.get(1).getTelemetryFields(0).getKey());
+	}
+
+	@Test
+	void aChangedPayloadSnapshotIsReported() throws Exception {
+		grpc = TestGrpc.serving(new Gateway());
+		var drone = new RegistryEdgeAdapterTest.Drone();
+		reporter = new CapabilityReporter(drone, new EdgeGatewayClient(grpc.channel()));
+		reporter.track("SN-1").get();
+		Payload camera = Payload.newBuilder().setRef("camera-0").setKind("camera").setVendor("Acme").setSlotIndex(0).build();
+
+		drone.commands().setPayloads("SN-1", List.of(camera));
+		drone.commands().setPayloads("SN-1", List.of(camera));
+		drone.commands().setPayloads("SN-1", List.of());
+
+		await(() -> v3Reports.size() == 3);
+		assertEquals(0, v3Reports.get(0).getPayloadsCount());
+		assertEquals(camera, v3Reports.get(1).getPayloads(0));
+		assertEquals(0, v3Reports.get(2).getPayloadsCount());
 	}
 
 	@Test

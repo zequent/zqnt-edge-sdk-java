@@ -6,6 +6,8 @@ import com.zqnt.protos.capability.v3.CommandEvent;
 import com.zqnt.protos.capability.v3.CommandResult;
 import com.zqnt.protos.capability.v3.CommandState;
 import com.zqnt.protos.capability.v3.CompletionMode;
+import com.zqnt.protos.capability.v3.Payload;
+import com.zqnt.protos.capability.v3.TargetType;
 import com.zqnt.protos.common.v3.AssetRef;
 import com.zqnt.protos.edge.v3.ExecuteCommandRequest;
 import com.zqnt.protos.edge.v3.ExecuteCommandResponse;
@@ -43,6 +45,7 @@ import java.util.concurrent.TimeUnit;
  *   <li>every executable id is advertised: every registered id, and every built-in id the adapter
  *   implements typed ({@link Options#probeBuiltIns()});</li>
  *   <li>input and output schemas parse; an ASYNCHRONOUS command names a completion event it declares;</li>
+ *   <li>every payload has a unique ref, and a command targeting a payload names a reported one;</li>
  *   <li>{@link #checkCommandEvents}: every command event carries its execution id, asset, state and
  *   {@code occurred_at}.</li>
  * </ul>
@@ -89,6 +92,15 @@ public final class EdgeAdapterConformance {
 			return new ConformanceReport(List.of("GetCapabilities failed: " + message(e)));
 		}
 
+		Set<String> payloadRefs = new HashSet<>();
+		for (Payload payload : capabilities.getPayloadsList()) {
+			if (payload.getRef().isBlank()) {
+				problems.add("a payload has no ref");
+			} else if (!payloadRefs.add(payload.getRef())) {
+				problems.add("payload " + payload.getRef() + " is reported twice");
+			}
+		}
+
 		CommandRegistry registry = adapter.commandRegistry().orElse(null);
 		Set<String> advertised = new LinkedHashSet<>();
 		Set<String> seen = new HashSet<>();
@@ -102,6 +114,10 @@ public final class EdgeAdapterConformance {
 				problems.add(id + " is advertised twice for the same target");
 			}
 			advertised.add(id);
+			if (capability.getTarget().getType() == TargetType.TARGET_TYPE_PAYLOAD
+					&& !payloadRefs.contains(capability.getTarget().getRef())) {
+				problems.add(id + " targets payload '" + capability.getTarget().getRef() + "', which is not reported");
+			}
 			checkSchemas(capability, problems);
 			checkCompletion(capability, problems);
 			if (registry != null && registry.contains(id)) {

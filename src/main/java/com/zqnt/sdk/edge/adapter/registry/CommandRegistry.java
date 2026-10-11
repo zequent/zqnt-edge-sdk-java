@@ -1,11 +1,14 @@
 package com.zqnt.sdk.edge.adapter.registry;
 
+import com.zqnt.protos.capability.v3.Payload;
 import com.zqnt.protos.capability.v3.TelemetryField;
 import com.zqnt.sdk.edge.adapter.domains.Capability;
 import com.zqnt.sdk.edge.adapter.domains.CommandResult;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -13,6 +16,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
@@ -36,6 +40,7 @@ public final class CommandRegistry {
 
 	private final Map<String, Registered> commands = new LinkedHashMap<>();
 	private final Map<String, TelemetryField> telemetryFields = new LinkedHashMap<>();
+	private final Map<String, List<Payload>> payloads = new ConcurrentHashMap<>();
 	private final List<Runnable> listeners = new CopyOnWriteArrayList<>();
 
 	/**
@@ -128,6 +133,36 @@ public final class CommandRegistry {
 		synchronized (telemetryFields) {
 			return List.copyOf(telemetryFields.values());
 		}
+	}
+
+	/**
+	 * The devices mounted on {@code sn}, as a full snapshot: a payload left out is detached. Tells the
+	 * listeners when the snapshot differs from the previous one.
+	 *
+	 * @throws IllegalArgumentException when a payload has no ref or two share one
+	 */
+	public void setPayloads(String sn, Collection<Payload> mounted) {
+		if (sn == null || sn.isBlank()) {
+			throw new IllegalArgumentException("Payloads need the asset's serial number");
+		}
+		List<Payload> snapshot = mounted == null ? List.of() : List.copyOf(mounted);
+		Set<String> refs = new HashSet<>();
+		for (Payload payload : snapshot) {
+			if (payload.getRef().isBlank()) {
+				throw new IllegalArgumentException("A payload of " + sn + " has no ref");
+			}
+			if (!refs.add(payload.getRef())) {
+				throw new IllegalArgumentException("Two payloads of " + sn + " share the ref " + payload.getRef());
+			}
+		}
+		List<Payload> previous = snapshot.isEmpty() ? payloads.remove(sn) : payloads.put(sn, snapshot);
+		if (!snapshot.equals(previous == null ? List.of() : previous)) {
+			changed();
+		}
+	}
+
+	public List<Payload> payloads(String sn) {
+		return sn == null ? List.of() : payloads.getOrDefault(sn, List.of());
 	}
 
 	/** Called on every change; returns the handle that removes the listener again. */

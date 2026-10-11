@@ -77,6 +77,22 @@ class EdgeAdapterConformanceTest {
 	}
 
 	@Test
+	void aCommandTargetingAnUnreportedPayloadIsFound() {
+		var drone = new RegistryEdgeAdapterTest.Drone();
+		drone.commands().capability("vendor.acme.beep").orElseThrow()
+				.setTargetType(com.zqnt.utils.devicecontrol.proto.CapabilityTargetType.CAPABILITY_TARGET_TYPE_PAYLOAD);
+		drone.commands().capability("vendor.acme.beep").orElseThrow().setTargetRef("speaker-1");
+
+		var report = EdgeAdapterConformance.check(drone, "SN-1");
+		assertTrue(report.problems().contains("vendor.acme.beep targets payload 'speaker-1', which is not reported"),
+				report.problems().toString());
+
+		drone.commands().setPayloads("SN-1", List.of(com.zqnt.protos.capability.v3.Payload.newBuilder()
+				.setRef("speaker-1").setKind("speaker").build()));
+		EdgeAdapterConformance.check(drone, "SN-1").assertPassed();
+	}
+
+	@Test
 	void aCommandEventWithoutOccurredAtIsFound() {
 		var report = EdgeAdapterConformance.checkCommandEvents(List.of(
 				CommandEvent.newBuilder().setCommandExecutionId("capexec:r:n").setAsset(AssetRef.newBuilder().setSn("SN-1"))
