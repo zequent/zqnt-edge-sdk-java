@@ -36,15 +36,32 @@ public final class V2Telemetry {
 				result.setBoundingBox(BoundingBox.newBuilder()
 						.setX(box.getX()).setY(box.getY()).setWidth(box.getWidth()).setHeight(box.getHeight()));
 			}
-			if (detection.hasPosition()) {
-				DetectionPosition.Builder position = DetectionPosition.newBuilder()
-						.setLatitude(detection.getPosition().getLatitude())
-						.setLongitude(detection.getPosition().getLongitude());
-				if (detection.getPosition().hasAltitude()) position.setAltitude(detection.getPosition().getAltitude());
-				result.setPosition(position);
+			if (detection.hasPosition() || hasGeometry(detection)) {
+				result.setPosition(position(detection));
 			}
 			v2.addDetections(result);
 		}
 		return v2.build();
+	}
+
+	private static boolean hasGeometry(Detection detection) {
+		return detection.hasRangeMeters() || detection.hasBearingDegrees() || detection.hasElevationDegrees()
+				|| detection.hasSpeed() || detection.hasHeadingDegrees();
+	}
+
+	private static DetectionPosition position(Detection detection) {
+		DetectionPosition.Builder position = DetectionPosition.newBuilder()
+				.setLatitude(Double.NaN)
+				.setLongitude(Double.NaN);
+		if (detection.hasPosition()) {
+			position.setLatitude(detection.getPosition().getLatitude()).setLongitude(detection.getPosition().getLongitude());
+			if (detection.getPosition().hasAltitude()) position.setAltitude(detection.getPosition().getAltitude());
+		}
+		if (detection.hasRangeMeters()) position.setRangeM(detection.getRangeMeters());
+		if (detection.hasBearingDegrees()) position.setBearingDeg(detection.getBearingDegrees());
+		if (detection.hasElevationDegrees()) position.setElevationDeg(detection.getElevationDegrees());
+		if (detection.hasSpeed()) position.setSpeedMps(detection.getSpeed());
+		if (detection.hasHeadingDegrees()) position.setHeadingDeg(detection.getHeadingDegrees());
+		return position.build();
 	}
 }
