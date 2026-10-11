@@ -22,6 +22,9 @@ public class AcmeDrone extends RegistryEdgeAdapter {
 }
 ```
 
+- `commands().setPayloads(sn, payloads)` sets the devices mounted on an asset (camera, speaker,
+  spotlight, ...); they go out with the v3 capabilities as a full snapshot, so a payload left out is
+  detached. A command acting on one targets it with `CAPABILITY_TARGET_TYPE_PAYLOAD` and the payload's ref.
 - `GetCapabilities` (v2 and v3) is derived from the registry only. v2 typed RPCs (`takeOff`, ...),
   v2 `SendCustomCommand` and v3 `ExecuteCommand` all run the same handler. The typed methods of
   `EdgeAdapterService` are deprecated; adapters that still implement them keep working.

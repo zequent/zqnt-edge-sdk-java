@@ -45,6 +45,9 @@ public final class CapabilityMappers {
 		if (current.getTelemetryFields() != null) {
 			set.addAllTelemetryFields(current.getTelemetryFields());
 		}
+		if (current.getPayloads() != null) {
+			set.addAllPayloads(current.getPayloads());
+		}
 		return set.build();
 	}
 
