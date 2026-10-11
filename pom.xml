@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.zqnt.sdk</groupId>
     <artifactId>edge-java-sdk</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>3.0.0-SNAPSHOT</version>
     <name>Zequent Java Edge SDK</name>
     <description>A Java SDK for Zequent's Edge services, built on Quarkus and gRPC, designed for seamless integration
         with Java applications.
