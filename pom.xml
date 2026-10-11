@@ -42,7 +42,7 @@
         <grpc.version>1.76.0</grpc.version>
         <slf4j.version>2.0.12</slf4j.version>
         <lombok.version>1.18.42</lombok.version>
-        <protobuf.version>3.25.9</protobuf.version>
+        <protobuf.version>4.36.2</protobuf.version>
         <proguard.version>7.9.1</proguard.version>
         <jackson.version>2.18.11</jackson.version>
     </properties>
