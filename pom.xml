@@ -14,8 +14,8 @@
 
     <licenses>
         <license>
-            <name>Apache License 2.0</name>
-            <url>https://opensource.org/licenses/Apache-2.0</url>
+            <name>Apache License, Version 2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
             <distribution>repo</distribution>
         </license>
     </licenses>
@@ -29,9 +29,9 @@
     </developers>
 
     <scm>
-        <connection>scm:git:https://github.com/zequent/zqnt-client-sdk-java.git</connection>
-        <developerConnection>scm:git:https://github.com/zequent/zqnt-client-sdk-java.git</developerConnection>
-        <url>https://github.com/zequent/zqnt-client-sdk-java</url>
+        <connection>scm:git:https://github.com/zequent/zqnt-edge-sdk-java.git</connection>
+        <developerConnection>scm:git:https://github.com/zequent/zqnt-edge-sdk-java.git</developerConnection>
+        <url>https://github.com/zequent/zqnt-edge-sdk-java</url>
         <tag>HEAD</tag>
     </scm>
     <properties>
