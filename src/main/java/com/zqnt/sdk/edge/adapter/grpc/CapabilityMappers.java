@@ -14,6 +14,7 @@ import com.zqnt.sdk.edge.adapter.domains.CapabilityError;
 import com.zqnt.sdk.edge.adapter.domains.CapabilityEvent;
 import com.zqnt.sdk.edge.adapter.domains.CapabilityRequirements;
 import com.zqnt.sdk.edge.adapter.domains.CurrentCapabilities;
+import com.zqnt.sdk.edge.adapter.registry.CommandCatalog;
 import com.zqnt.sdk.edge.support.Structs;
 import com.zqnt.utils.core.ProtobufHelpers;
 import com.zqnt.utils.devicecontrol.proto.CapabilityErrorProto;
@@ -24,6 +25,7 @@ import com.zqnt.utils.devicecontrol.proto.CapabilityTargetType;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /** An adapter's capabilities as the v2 and the v3 contract carry them. */
 public final class CapabilityMappers {
@@ -68,6 +70,7 @@ public final class CapabilityMappers {
 		builder.setSourceValue(value.getSource() == null ? CapabilitySource.CAPABILITY_SOURCE_EDGE_ADAPTER_VALUE : value.getSource().getNumber());
 		if (value.getCompletion() != null) builder.setCompletion(value.getCompletion());
 		if (value.getCompletionEvent() != null) builder.setCompletionEvent(value.getCompletionEvent());
+		Optional.ofNullable(value.getSafety()).or(() -> CommandCatalog.safety(id)).ifPresent(builder::setSafety);
 		if (value.getErrors() != null) {
 			value.getErrors().forEach(error -> builder.addErrors(CapabilityErrorSpec.newBuilder()
 					.setCode(text(error.getCode()))

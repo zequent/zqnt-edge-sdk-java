@@ -28,6 +28,11 @@ public class AcmeDrone extends RegistryEdgeAdapter {
 - Params are validated against the input schema before the handler runs, and numbers are converted
   to `Integer`/`Long` where the schema says `integer`. Invalid params are REJECTED with error code
   `command.invalid_params` and a readable message; an unknown id with `command.not_supported`.
+- **Risk:** every capability carries a `CommandSafety`. A standard id gets the rating of the
+  platform's command catalog (`CommandCatalog`, e.g. `flight.takeoff` MOVE, `flight.land` CRITICAL,
+  `camera.take_photo` OBSERVE); `capability.setSafety(...)` overrides it. A `vendor.*` command that
+  moves or affects the asset must declare its own: an id outside the catalog declares none, and the
+  platform then falls back to the 2.x prefix rule.
 - Serve both contracts: `EdgeAdapterGrpcServiceImpl` (v2) and `EdgeAdapterV3GrpcServiceImpl` (v3),
   e.g. as `@GrpcService` subclasses in Quarkus.
 
@@ -37,7 +42,7 @@ public class AcmeDrone extends RegistryEdgeAdapter {
 |---|---|---|
 | Command progress/completion | `LiveDataServiceImpl` with an `EdgeGatewayClient` sends the events adapters already produce (`CommandExecutionEventData`) as `EdgeGatewayService.PublishCommandEvent`, under the platform's `command_execution_id` | v2 notification stream, as before |
 | Capabilities | `CapabilityReporter.track(sn)`: `ReportCapabilities` at start and on every registry change, retried until it succeeds | `RemoteControlService.ReportAssetRuntime` (no telemetry fields); it replaces the whole runtime snapshot, so an adapter that reports detected payloads passes its own `V2CapabilityReport` to `EdgeGatewayClient` |
-| Telemetry, detections, alerts | `TelemetryPublisher.publish(TelemetrySample / DetectionBatch / Alert)`: one long-lived `TelemetryIngestService` stream per kind, reconnected with backoff | `ProduceTelemetry`/`ProduceDetection` with the shared fields only: a sample's `details` and all alerts are dropped |
+| Telemetry, detections, alerts | `TelemetryPublisher.publish(TelemetrySample / DetectionBatch / Alert)`: one long-lived `TelemetryIngestService` stream per kind, reconnected with backoff | `ProduceTelemetry`/`ProduceDetection`; catalog keys in a sample's `details` land in their v2 fields (`TelemetrySampleMapper` from zqnt-api-java), other keys and all alerts are dropped |
 
 After UNIMPLEMENTED the SDK stays on v2 for 10 minutes, then tries v3 again. Every command event
 carries `occurred_at` (now, when the adapter gave none). `EdgeGatewayClient` uses the

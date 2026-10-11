@@ -38,12 +38,12 @@ import java.util.concurrent.CompletableFuture;
  *   <li><b>Rename, don't overload.</b> If a command's shape changes incompatibly, give it a new id
  *   (or bump {@link Capability#getSchemaVersion()}) rather than silently changing what an existing
  *   id means — capability graphs may be persisted and reference ids by exact string.</li>
- *   <li><b>High-risk commands are prefix-matched for safety gating.</b> Anything starting with
- *   {@code flight.}, {@code navigation.}, {@code dock.}, {@code mission.}, or equal to
- *   {@code asset.reboot} is treated as high-risk by mission-autonomy's {@code ExecutionSafetyGate}
- *   (human-approval policy, live capability/telemetry checks before dispatch). A new domain that
- *   physically moves or affects the asset must either use one of those prefixes or be added to
- *   that gate explicitly — don't introduce a new movement-capable domain silently.</li>
+ *   <li><b>Declare the risk.</b> mission-autonomy's {@code ExecutionSafetyGate} treats a command
+ *   whose {@link Capability#getSafety() safety} is MOVE or CRITICAL as high-risk. Standard ids get
+ *   their {@link com.zqnt.sdk.edge.adapter.registry.CommandCatalog catalog} rating; a vendor or
+ *   custom command that moves or affects the asset must declare its own. A command with no rating
+ *   is judged by the 2.x prefix rule ({@code flight.}, {@code navigation.}, {@code dock.},
+ *   {@code mission.}, {@code asset.reboot}).</li>
  * </ul>
  *
  * <h2>Writing commands once</h2>

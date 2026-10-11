@@ -18,6 +18,7 @@ import com.zqnt.protos.telemetry.v3.TelemetryIngestServiceGrpc;
 import com.zqnt.protos.telemetry.v3.TelemetrySample;
 import com.zqnt.sdk.edge.livedata.application.impl.LiveDataServiceImpl;
 import com.zqnt.sdk.edge.testing.TestGrpc;
+import com.zqnt.utils.telemetry.TelemetrySampleMapper;
 import com.zqnt.utils.livedata.proto.LiveDataResponse;
 import com.zqnt.utils.livedata.proto.LiveDataServiceGrpc;
 import com.zqnt.utils.livedata.proto.ProduceTelemetryRequest;
@@ -33,7 +34,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * v3 live data goes over one long-lived TelemetryIngestService stream per kind; an older platform
- * gets the shared fields over v2 instead.
+ * gets it over v2 instead, catalog details in their v2 fields.
  */
 class TelemetryPublisherTest {
 
@@ -140,7 +141,7 @@ class TelemetryPublisherTest {
 	}
 
 	@Test
-	void anOlderPlatformGetsTheSharedFieldsOverV2() throws Exception {
+	void aTelemetrySampleFallsBackToV2WithItsCatalogDetails() throws Exception {
 		grpc = TestGrpc.serving(new LiveData());
 		connect();
 
@@ -159,6 +160,7 @@ class TelemetryPublisherTest {
 		assertEquals(40f, telemetry.getData().getRelativeAltitude());
 		assertEquals(12f, telemetry.getData().getSubAsset().getHorizontalSpeed());
 		assertEquals("76", telemetry.getData().getSubAsset().getBatteryInformation().getPercentage());
+		assertEquals(1, telemetry.getData().getSubAsset().getGear());
 		assertEquals("car", v2Detections.get(0).getDetections(0).getObjectType());
 	}
 
@@ -173,11 +175,26 @@ class TelemetryPublisherTest {
 	}
 
 	@Test
-	void aBatteryWithoutMovementIsTheAssetsOwnInV2() {
-		var v2Sample = V2Telemetry.toV2(TelemetrySample.newBuilder().setAsset(AssetRef.newBuilder().setSn("DOCK-1"))
-				.setBatteryPercent(55.5).build());
+	void aStandingAssetFallsBackToV2AssetTelemetry() throws Exception {
+		grpc = TestGrpc.serving(new LiveData());
+		connect();
+		TelemetrySample dock = TelemetrySample.newBuilder()
+				.setAsset(AssetRef.newBuilder().setSn("DOCK-1"))
+				.setBatteryPercent(55.5)
+				.setDetails(Struct.newBuilder()
+						.putFields(TelemetrySampleMapper.DOCK_MODE, Value.newBuilder().setStringValue("WORKING").build())
+						.putFields(TelemetrySampleMapper.WIND_SPEED, Value.newBuilder().setNumberValue(2.5).build()))
+				.build();
 
-		assertEquals(55.5f, v2Sample.getData().getAsset().getSubAssetPercentage());
-		assertFalse(v2Sample.getData().hasSubAsset());
+		publisher.publish(dock).get();
+		await(() -> !publisher.v3Available());
+		publisher.publish(dock).get();
+
+		await(() -> v2Telemetry.size() == 1);
+		var asset = v2Telemetry.get(0).getData().getAsset();
+		assertEquals(55.5f, asset.getSubAssetPercentage());
+		assertEquals("ASSET_MODE_WORKING", asset.getMode().name());
+		assertEquals(2.5f, v2Telemetry.get(0).getData().getWindSpeed());
+		assertFalse(v2Telemetry.get(0).getData().hasSubAsset());
 	}
 }
