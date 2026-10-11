@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.zqnt.sdk</groupId>
     <artifactId>edge-java-sdk</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>3.0.0-SNAPSHOT</version>
     <name>Zequent Java Edge SDK</name>
     <description>A Java SDK for Zequent's Edge services, built on Quarkus and gRPC, designed for seamless integration
         with Java applications.
@@ -49,8 +49,8 @@
 
     <dependencyManagement>
         <dependencies>
-            <!-- jackson 2.x arrives transitively through zqnt-utils-java (2.18.9 at the pinned
-                 preview); pinned here for CVE-2026-68497 until the next utils preview is picked up. -->
+            <!-- jackson 2.x arrives transitively through zqnt-api-java (2.18.11 at the pinned
+                 preview); pinned here for CVE-2026-68497. -->
             <dependency>
                 <groupId>com.fasterxml.jackson</groupId>
                 <artifactId>jackson-bom</artifactId>
@@ -64,9 +64,9 @@
     <!-- GitHub Packages Repository -->
     <repositories>
         <repository>
-            <id>zqnt-utils-repo</id>
+            <id>zqnt-api-repo</id>
             <name>GitHub Packages</name>
-            <url>https://maven.pkg.github.com/Zequent/zqnt-utils-java</url>
+            <url>https://maven.pkg.github.com/Zequent/zqnt-api-java</url>
             <releases>
                 <enabled>true</enabled>
             </releases>
@@ -78,16 +78,11 @@
 
 
     <dependencies>
-        <!-- Pinned to the real, published 2.0.0 release (not the floating 1.0.0-SNAPSHOT this used
-             to reference): a SNAPSHOT resolves to whatever was most recently deployed/installed
-             locally at build time, which is not reproducible and had drifted enough to break the
-             build outright. This is the 2.0.0-track branch (main); the 1.3.0-track branch pins
-             1.3.0 instead. See zqnt-protos' README "Versioning" section for the platform-wide
-             convention. -->
         <dependency>
             <groupId>com.zqnt</groupId>
-            <artifactId>zqnt-utils-java</artifactId>
-            <version>2.0.0</version>
+            <artifactId>zqnt-api-java</artifactId>
+            <!-- preview (zequent/zqnt-api-java#8); the release version once it is tagged -->
+            <version>3.0.0-PR8-6f7efdf-SNAPSHOT</version>
         </dependency>
         <!-- Platform token verification (auth/PlatformTokenVerifier); version from jackson-bom -->
         <dependency>

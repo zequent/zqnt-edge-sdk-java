@@ -266,28 +266,6 @@ public class ConnectorServiceImpl implements ConnectorService {
 	}
 
 	@Override
-	@Deprecated
-	public CompletableFuture<AssetDTO> registerAsset(AssetDTO assetDTO) {
-		var request = ConnectorRegisterAssetRequest.newBuilder()
-				.setBase(RequestBase.newBuilder()
-						.setTid(UUID.randomUUID().toString())
-						.setTimestamp(ProtobufHelpers.now())
-						.setSn(assetDTO.getSn())
-						.build())
-				.setAsset(protoJsonMapper.map(assetDTO))
-				.build();
-
-		return callAsyncWithRetry(request, connectorServiceStub::registerAsset)
-				.thenApply(response -> {
-					if (response.getHasErrors()) {
-						log.error("Error registering asset: {}", response.getError());
-						return null;
-					}
-					return protoJsonMapper.map(response.getAsset());
-				});
-	}
-
-	@Override
 	public CompletableFuture<AssetDTO> redeemAssetClaim(String code, AssetDTO asset) {
 		var request = RedeemAssetClaimRequest.newBuilder()
 				.setBase(RequestBase.newBuilder()
