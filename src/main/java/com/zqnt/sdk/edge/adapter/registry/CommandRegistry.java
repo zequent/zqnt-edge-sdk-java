@@ -41,7 +41,7 @@ public final class CommandRegistry {
 	/**
 	 * Registers {@code id}; replaces an earlier registration of the same id.
 	 *
-	 * @return the capability as advertised, for adding a description, completion mode, events, ...
+	 * @return the capability as advertised, for adding a description, completion mode, safety, events, ...
 	 * (call {@link #changed()} after changing it later, so the platform learns about it)
 	 * @throws IllegalArgumentException when a schema is not one {@link CommandSchemas} understands
 	 */

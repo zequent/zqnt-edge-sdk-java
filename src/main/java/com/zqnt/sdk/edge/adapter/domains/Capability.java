@@ -54,6 +54,12 @@ public class Capability {
 	private com.zqnt.protos.capability.v3.CompletionMode completion;
 	/** For ASYNCHRONOUS: the event in {@link #events} that reports the outcome. */
 	private String completionEvent;
+	/**
+	 * How much the command changes the world; the platform's safety gate, approvals and the agent
+	 * go by its risk. Unset, a standard command id is advertised with its
+	 * {@link com.zqnt.sdk.edge.adapter.registry.CommandCatalog catalog} rating.
+	 */
+	private com.zqnt.protos.capability.v3.CommandSafety safety;
 
 	public Capability(String command, String description, CapabilityState state, String unavailableReason,
 			Map<String, String> metadata) {

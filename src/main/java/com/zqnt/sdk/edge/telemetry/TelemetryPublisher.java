@@ -13,6 +13,7 @@ import com.zqnt.protos.telemetry.v3.TelemetrySample;
 import com.zqnt.sdk.edge.gateway.V3Availability;
 import com.zqnt.sdk.edge.livedata.application.LiveDataService;
 import com.zqnt.utils.core.ProtobufHelpers;
+import com.zqnt.utils.telemetry.TelemetrySampleMapper;
 import io.grpc.Channel;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
@@ -31,10 +32,10 @@ import java.util.function.LongSupplier;
  * exponential backoff after an error.
  *
  * <p>Against a platform without v3 (UNIMPLEMENTED) samples and detections go through the v2
- * {@link LiveDataService} instead, for ten minutes before v3 is tried again. v2 has no place for
- * them, so a sample's {@code details} and every alert are dropped there; only the shared fields
- * (position, altitudes, heading, speeds, battery) arrive. Items sent on a stream that is just
- * failing can be lost, as on any stream.
+ * {@link LiveDataService} instead, for ten minutes before v3 is tried again. A sample's catalog
+ * {@code details} land in their v2 fields ({@link TelemetrySampleMapper}); keys v2 has no field for
+ * and every alert are dropped there. Items sent on a stream that is just failing can be lost, as on
+ * any stream.
  *
  * <p>The asset's serial is required; {@code observed_at}/{@code occurred_at} is set to now when missing.
  */
@@ -72,7 +73,7 @@ public class TelemetryPublisher implements AutoCloseable {
 		}
 		TelemetrySample complete = sample.hasObservedAt() ? sample : sample.toBuilder().setObservedAt(ProtobufHelpers.now()).build();
 		if (!availability.available()) {
-			return v2 == null ? dropped("telemetry") : v2.produceTelemetry(complete.getAsset().getSn(), V2Telemetry.toV2(complete));
+			return v2 == null ? dropped("telemetry") : v2.produceTelemetry(complete.getAsset().getSn(), TelemetrySampleMapper.toRequest(complete));
 		}
 		return samples.send(PublishTelemetryRequest.newBuilder().setSample(complete).build());
 	}
