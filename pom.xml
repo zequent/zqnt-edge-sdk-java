@@ -82,7 +82,7 @@
             <groupId>com.zqnt</groupId>
             <artifactId>zqnt-api-java</artifactId>
             <!-- preview (zequent/zqnt-api-java#1); the release version once it is tagged -->
-            <version>1.0.0-PR1-2392250-SNAPSHOT</version>
+            <version>3.0.0-PR1-c9a26b2-SNAPSHOT</version>
         </dependency>
         <!-- Platform token verification (auth/PlatformTokenVerifier); version from jackson-bom -->
         <dependency>
