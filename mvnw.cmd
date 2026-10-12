@@ -84,7 +84,7 @@ if ($env:MAVEN_USER_HOME) {
   $MAVEN_M2_PATH = "$env:MAVEN_USER_HOME"
 }
 
-if (-not (com.zequent.framwork.remotecontrol.Test-Path -Path $MAVEN_M2_PATH)) {
+if (-not (Test-Path -Path $MAVEN_M2_PATH)) {
     New-Item -Path $MAVEN_M2_PATH -ItemType Directory | Out-Null
 }
 
@@ -99,7 +99,7 @@ $MAVEN_HOME_PARENT = "$MAVEN_WRAPPER_DISTS/$distributionUrlNameMain"
 $MAVEN_HOME_NAME = ([System.Security.Cryptography.SHA256]::Create().ComputeHash([byte[]][char[]]$distributionUrl) | ForEach-Object {$_.ToString("x2")}) -join ''
 $MAVEN_HOME = "$MAVEN_HOME_PARENT/$MAVEN_HOME_NAME"
 
-if (com.zequent.framwork.remotecontrol.Test-Path -Path "$MAVEN_HOME" -PathType Container) {
+if (Test-Path -Path "$MAVEN_HOME" -PathType Container) {
   Write-Verbose "found existing MAVEN_HOME at $MAVEN_HOME"
   Write-Output "MVN_CMD=$MAVEN_HOME/bin/$MVN_CMD"
   exit $?
@@ -155,7 +155,7 @@ $actualDistributionDir = ""
 # First try the expected directory name (for regular distributions)
 $expectedPath = Join-Path "$TMP_DOWNLOAD_DIR" "$distributionUrlNameMain"
 $expectedMvnPath = Join-Path "$expectedPath" "bin/$MVN_CMD"
-if ((com.zequent.framwork.remotecontrol.Test-Path -Path $expectedPath -PathType Container) -and (com.zequent.framwork.remotecontrol.Test-Path -Path $expectedMvnPath -PathType Leaf)) {
+if ((Test-Path -Path $expectedPath -PathType Container) -and (Test-Path -Path $expectedMvnPath -PathType Leaf)) {
   $actualDistributionDir = $distributionUrlNameMain
 }
 
@@ -163,7 +163,7 @@ if ((com.zequent.framwork.remotecontrol.Test-Path -Path $expectedPath -PathType 
 if (!$actualDistributionDir) {
   Get-ChildItem -Path "$TMP_DOWNLOAD_DIR" -Directory | ForEach-Object {
     $testPath = Join-Path $_.FullName "bin/$MVN_CMD"
-    if (com.zequent.framwork.remotecontrol.Test-Path -Path $testPath -PathType Leaf) {
+    if (Test-Path -Path $testPath -PathType Leaf) {
       $actualDistributionDir = $_.Name
     }
   }
@@ -178,7 +178,7 @@ Rename-Item -Path "$TMP_DOWNLOAD_DIR/$actualDistributionDir" -NewName $MAVEN_HOM
 try {
   Move-Item -Path "$TMP_DOWNLOAD_DIR/$MAVEN_HOME_NAME" -Destination $MAVEN_HOME_PARENT | Out-Null
 } catch {
-  if (! (com.zequent.framwork.remotecontrol.Test-Path -Path "$MAVEN_HOME" -PathType Container)) {
+  if (! (Test-Path -Path "$MAVEN_HOME" -PathType Container)) {
     Write-Error "fail to move MAVEN_HOME"
   }
 } finally {
